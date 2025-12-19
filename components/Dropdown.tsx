@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export type DropdownOption = {
   value: string;
@@ -31,14 +32,47 @@ export const Dropdown: React.FC<DropdownProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
   useEffect(() => {
     if (isOpen) {
       setIsRendered(true);
-      return;
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setMenuStyle({
+          position: 'absolute',
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          zIndex: 9999,
+        });
+      }
+    } else {
+      const timer = setTimeout(() => setIsRendered(false), 200);
+      return () => clearTimeout(timer);
     }
-    const timer = setTimeout(() => setIsRendered(false), 200);
-    return () => clearTimeout(timer);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (isOpen && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setMenuStyle({
+          position: 'absolute',
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          zIndex: 9999,
+        });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleResize, true);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize, true);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -48,76 +82,92 @@ export const Dropdown: React.FC<DropdownProps> = ({
   const selected = useMemo(() => options.find((o) => o.value === value), [options, value]);
 
   return (
-    <div className="relative">
-      {isOpen && <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />}
+    <>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[9998]"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <button
+        ref={buttonRef}
         type="button"
         name={name}
         disabled={disabled}
         onClick={() => setIsOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={buttonClassName}
+        className={`${buttonClassName} ${isOpen ? 'relative z-[9999]' : ''}`}
       >
         {value ? (
           renderValue ? (
             renderValue(value, selected)
           ) : (
-            <span className="flex items-center gap-2 text-text-main-light dark:text-white font-medium min-w-0">
+            <span className="flex items-center gap-3 text-slate-700 dark:text-slate-200 font-medium min-w-0">
               {selected?.icon ? (
-                <span className="material-symbols-outlined text-primary text-[20px]">{selected.icon}</span>
+                <span className="material-symbols-outlined text-primary text-[22px]">{selected.icon}</span>
               ) : null}
               <span className="truncate">{selected?.label ?? value}</span>
             </span>
           )
         ) : (
-          <span className="text-text-sub-light dark:text-slate-500">{placeholder}</span>
+          <span className="text-slate-400 dark:text-slate-500 font-normal">{placeholder}</span>
         )}
         <span
-          className={`material-symbols-outlined text-text-sub-light transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`material-symbols-outlined text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-primary' : ''}`}
         >
           expand_more
         </span>
       </button>
 
-      {isRendered ? (
-        <div
-          className={`absolute top-full left-0 w-full mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-20 max-h-60 overflow-y-auto transition-all duration-200 origin-top ${
-            isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-2 scale-95'
-          } ${menuClassName}`}
-          role="listbox"
-        >
-          {options.map((option) => (
-            <div
-              key={option.value}
-              onClick={() => {
-                onValueChange(option.value);
-                setIsOpen(false);
-              }}
-              role="option"
-              aria-selected={value === option.value}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 dark:border-slate-800 last:border-0 bg-white dark:bg-surface-dark ${
-                value === option.value
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-primary'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-              }`}
-            >
-              {option.icon ? (
-                <span
-                  className={`material-symbols-outlined text-[20px] ${value === option.value ? 'text-primary' : 'text-slate-400'}`}
+      {isRendered &&
+        createPortal(
+          <div
+            style={menuStyle}
+            className={`bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden transition-all duration-200 origin-top ${
+              isOpen
+                ? 'opacity-100 translate-y-0 scale-100'
+                : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
+            } ${menuClassName}`}
+            role="listbox"
+          >
+            <div className="max-h-[280px] overflow-y-auto py-1 custom-scrollbar">
+              {options.map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => {
+                    onValueChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  role="option"
+                  aria-selected={value === option.value}
+                  className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all border-l-4 ${
+                    value === option.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
                 >
-                  {option.icon}
-                </span>
-              ) : null}
-              <span className="font-medium">{option.label}</span>
-              {value === option.value ? (
-                <span className="material-symbols-outlined text-primary text-[18px] ml-auto">check</span>
-              ) : null}
+                  {option.icon ? (
+                    <span
+                      className={`material-symbols-outlined text-[20px] ${
+                        value === option.value ? 'text-primary' : 'text-slate-400'
+                      }`}
+                    >
+                      {option.icon}
+                    </span>
+                  ) : null}
+                  <span className={`font-medium ${value === option.value ? 'font-semibold' : ''}`}>{option.label}</span>
+                  {value === option.value ? (
+                    <span className="material-symbols-outlined text-primary text-[18px] ml-auto">check</span>
+                  ) : null}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 };
 
