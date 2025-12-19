@@ -1,23 +1,51 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/AuthStore';
+
+const REMEMBER_LOGIN_KEY = 'tvdcontrol.login.remember';
+const REMEMBER_EMAIL_KEY = 'tvdcontrol.login.email';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login, register, isLoading, error } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   
   // Form States
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   
   // Validation States
   const [emailError, setEmailError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
+  useEffect(() => {
+    try {
+      const rawRemember = localStorage.getItem(REMEMBER_LOGIN_KEY);
+      const shouldRemember = rawRemember === '1';
+      setRememberMe(shouldRemember);
+      if (shouldRemember) {
+        const rememberedEmail = localStorage.getItem(REMEMBER_EMAIL_KEY) || '';
+        if (rememberedEmail) setEmail(rememberedEmail);
+      }
+    } catch {
+      setRememberMe(false);
+    }
+  }, []);
 
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    // Senha deve ter pelo menos 6 caracteres
+    return password.length >= 6;
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,34 +53,122 @@ const Login: React.FC = () => {
       if (emailError) setEmailError('');
   };
 
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setName(e.target.value);
+      if (nameError) setNameError('');
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPassword(e.target.value);
+      if (passwordError) setPasswordError('');
+      if (confirmPasswordError && confirmPassword) setConfirmPasswordError('');
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setConfirmPassword(e.target.value);
+      if (confirmPasswordError) setConfirmPasswordError('');
+  };
+
+  const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.checked;
+    setRememberMe(next);
+    try {
+      if (next) {
+        localStorage.setItem(REMEMBER_LOGIN_KEY, '1');
+      } else {
+        localStorage.removeItem(REMEMBER_LOGIN_KEY);
+        localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Reset errors
+    setEmailError('');
+    setNameError('');
+    setPasswordError('');
+    setConfirmPasswordError('');
+    
+    let hasErrors = false;
+
+    // Validate name (register only)
+    if (activeTab === 'register') {
+      if (!name.trim()) {
+        setNameError('Nome é obrigatório');
+        hasErrors = true;
+      } else if (name.trim().length < 3) {
+        setNameError('Nome deve ter pelo menos 3 caracteres');
+        hasErrors = true;
+      }
+    }
+    
     // Validate Email Format
-    if (!validateEmail(email)) {
-        setEmailError('Por favor, insira um endereço de email válido.');
-        return;
+    if (!email.trim()) {
+      setEmailError('Email é obrigatório');
+      hasErrors = true;
+    } else if (!validateEmail(email)) {
+      setEmailError('Por favor, insira um endereço de email válido.');
+      hasErrors = true;
     }
 
-    setIsLoading(true);
-    
-    if (activeTab === 'register' && password !== confirmPassword) {
-        alert("As senhas não coincidem!");
-        setIsLoading(false);
-        return;
+    // Validate Password
+    if (!password) {
+      setPasswordError('Senha é obrigatória');
+      hasErrors = true;
+    } else if (!validatePassword(password)) {
+      setPasswordError('Senha deve ter pelo menos 6 caracteres');
+      hasErrors = true;
     }
     
-    // Simulate API call for both Login and Register
-    setTimeout(() => {
-      setIsLoading(false);
-      // In a real app, you would handle registration logic here
-      navigate('/dashboard');
-    }, 800);
+    // Validate Confirm Password (register only)
+    if (activeTab === 'register') {
+      if (!confirmPassword) {
+        setConfirmPasswordError('Confirmação de senha é obrigatória');
+        hasErrors = true;
+      } else if (password !== confirmPassword) {
+        setConfirmPasswordError('As senhas não coincidem');
+        hasErrors = true;
+      }
+    }
+
+    if (hasErrors) {
+      return;
+    }
+    
+    // Login/Cadastro real via backend (domínio + usuário cadastrado + senha obrigatória)
+    void (async () => {
+      try {
+        if (activeTab === 'register') {
+          await register(name, email, password);
+        } else {
+          await login(email, password);
+          try {
+            if (rememberMe) {
+              localStorage.setItem(REMEMBER_LOGIN_KEY, '1');
+              localStorage.setItem(REMEMBER_EMAIL_KEY, email);
+            } else {
+              localStorage.removeItem(REMEMBER_LOGIN_KEY);
+              localStorage.removeItem(REMEMBER_EMAIL_KEY);
+            }
+          } catch {
+            // ignore
+          }
+        }
+        navigate('/dashboard');
+      } catch {
+        // erro já está no store; opcionalmente podemos mapear mensagens aqui
+      }
+    })();
   };
 
   const toggleTab = (tab: 'login' | 'register') => {
       setActiveTab(tab);
       setEmailError('');
+      setShowPassword(false);
       // Optional: Clear form or keep values
   };
 
@@ -155,6 +271,11 @@ const Login: React.FC = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
               
               {/* Name Field (Register Only) */}
               {activeTab === 'register' && (
@@ -177,7 +298,7 @@ const Login: React.FC = () => {
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[#0d141b] dark:text-slate-200 text-sm font-medium leading-normal" htmlFor="email">Endereço de Email</label>
+                <label className="text-[#0d141b] dark:text-slate-200 text-sm font-medium leading-normal" htmlFor="email">Endereço de Email *</label>
                 <div className={`flex w-full items-stretch rounded-lg h-12 transition-all ${emailError ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500' : 'bg-[#e7edf3] dark:bg-slate-800 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-1 dark:focus-within:ring-offset-slate-900'}`}>
                   <div className={`flex items-center justify-center pl-4 pr-2 ${emailError ? 'text-red-500' : 'text-[#4c739a] dark:text-slate-400'}`}>
                     <span className="material-symbols-outlined text-[20px]">{emailError ? 'error' : 'mail'}</span>
@@ -185,9 +306,12 @@ const Login: React.FC = () => {
                   <input 
                     type="email" 
                     id="email" 
+                    name="email"
                     value={email}
                     onChange={handleEmailChange}
-                    placeholder="nome@tvdoutor.com.br" 
+                    placeholder="seu@email.com" 
+                    required
+                    autoComplete="username"
                     className={`flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg bg-transparent placeholder:text-[#4c739a] dark:placeholder:text-slate-500 focus:outline-0 border-none h-full text-sm font-normal px-2 ${emailError ? 'text-red-900 dark:text-red-200' : 'text-[#0d141b] dark:text-white'}`}
                   />
                 </div>
@@ -198,46 +322,64 @@ const Login: React.FC = () => {
 
               <div className="flex flex-col gap-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-[#0d141b] dark:text-slate-200 text-sm font-medium leading-normal" htmlFor="password">Senha</label>
+                  <label className="text-[#0d141b] dark:text-slate-200 text-sm font-medium leading-normal" htmlFor="password">Senha *</label>
                   {activeTab === 'login' && (
                     <a href="#" className="text-primary text-xs font-semibold hover:underline">Esqueceu a senha?</a>
                   )}
                 </div>
-                <div className="flex w-full items-stretch rounded-lg h-12 bg-[#e7edf3] dark:bg-slate-800 group focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-1 dark:focus-within:ring-offset-slate-900 transition-all">
-                  <div className="text-[#4c739a] dark:text-slate-400 flex items-center justify-center pl-4 pr-2">
-                    <span className="material-symbols-outlined text-[20px]">lock</span>
+                <div className={`flex w-full items-stretch rounded-lg h-12 transition-all ${passwordError ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500' : 'bg-[#e7edf3] dark:bg-slate-800 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-1 dark:focus-within:ring-offset-slate-900'}`}>
+                  <div className={`flex items-center justify-center pl-4 pr-2 ${passwordError ? 'text-red-500' : 'text-[#4c739a] dark:text-slate-400'}`}>
+                    <span className="material-symbols-outlined text-[20px]">{passwordError ? 'error' : 'lock'}</span>
                   </div>
                   <input 
-                    type="password" 
+                    type={showPassword ? 'text' : 'password'}
                     id="password" 
+                    name="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={activeTab === 'register' ? "Crie uma senha forte" : "Digite sua senha"} 
-                    className="flex w-full min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-[#0d141b] dark:text-white placeholder:text-[#4c739a] dark:placeholder:text-slate-500 focus:outline-0 border-none h-full text-sm font-normal px-2"
+                    onChange={handlePasswordChange}
+                    placeholder={activeTab === 'register' ? "Mínimo 6 caracteres" : "Digite sua senha"} 
+                    required
+                    autoComplete={activeTab === 'login' ? 'current-password' : 'new-password'}
+                    className={`flex w-full min-w-0 flex-1 resize-none overflow-hidden bg-transparent placeholder:text-[#4c739a] dark:placeholder:text-slate-500 focus:outline-0 border-none h-full text-sm font-normal px-2 ${passwordError ? 'text-red-900 dark:text-red-200' : 'text-[#0d141b] dark:text-white'}`}
                   />
-                  <button type="button" className="text-[#4c739a] dark:text-slate-400 hover:text-primary dark:hover:text-primary flex items-center justify-center px-4 rounded-r-lg">
-                    <span className="material-symbols-outlined text-[20px]">visibility</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="text-[#4c739a] dark:text-slate-400 hover:text-primary dark:hover:text-primary flex items-center justify-center px-4 rounded-r-lg"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
                   </button>
                 </div>
+                {passwordError && (
+                  <span className="text-red-500 text-xs font-medium animate-in slide-in-from-top-1">{passwordError}</span>
+                )}
               </div>
 
               {/* Confirm Password Field (Register Only) */}
               {activeTab === 'register' && (
                   <div className="flex flex-col gap-1.5 animate-in slide-in-from-left-2 duration-300 delay-75">
-                    <label className="text-[#0d141b] dark:text-slate-200 text-sm font-medium leading-normal" htmlFor="confirm-password">Confirme sua senha</label>
-                    <div className="flex w-full items-stretch rounded-lg h-12 bg-[#e7edf3] dark:bg-slate-800 group focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-1 dark:focus-within:ring-offset-slate-900 transition-all">
-                      <div className="text-[#4c739a] dark:text-slate-400 flex items-center justify-center pl-4 pr-2">
-                        <span className="material-symbols-outlined text-[20px]">lock</span>
+                    <label className="text-[#0d141b] dark:text-slate-200 text-sm font-medium leading-normal" htmlFor="confirm-password">Confirme sua senha *</label>
+                    <div className={`flex w-full items-stretch rounded-lg h-12 transition-all ${confirmPasswordError ? 'bg-red-50 dark:bg-red-900/10 ring-2 ring-red-500' : 'bg-[#e7edf3] dark:bg-slate-800 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-1 dark:focus-within:ring-offset-slate-900'}`}>
+                      <div className={`flex items-center justify-center pl-4 pr-2 ${confirmPasswordError ? 'text-red-500' : 'text-[#4c739a] dark:text-slate-400'}`}>
+                        <span className="material-symbols-outlined text-[20px]">{confirmPasswordError ? 'error' : 'lock'}</span>
                       </div>
                       <input 
-                        type="password" 
+                        type={showPassword ? 'text' : 'password'}
                         id="confirm-password" 
+                        name="confirm-password"
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onChange={handleConfirmPasswordChange}
                         placeholder="Confirme sua senha" 
-                        className="flex w-full min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-[#0d141b] dark:text-white placeholder:text-[#4c739a] dark:placeholder:text-slate-500 focus:outline-0 border-none h-full text-sm font-normal px-2"
+                        required
+                        autoComplete="new-password"
+                        className={`flex w-full min-w-0 flex-1 resize-none overflow-hidden bg-transparent placeholder:text-[#4c739a] dark:placeholder:text-slate-500 focus:outline-0 border-none h-full text-sm font-normal px-2 ${confirmPasswordError ? 'text-red-900 dark:text-red-200' : 'text-[#0d141b] dark:text-white'}`}
                       />
                     </div>
+                    {confirmPasswordError && (
+                      <span className="text-red-500 text-xs font-medium animate-in slide-in-from-top-1">{confirmPasswordError}</span>
+                    )}
                   </div>
               )}
 
@@ -247,6 +389,8 @@ const Login: React.FC = () => {
                     <input 
                         id="remember" 
                         type="checkbox" 
+                        checked={rememberMe}
+                        onChange={handleRememberMeChange}
                         className="w-4 h-4 border-slate-300 rounded bg-slate-50 focus:ring-3 focus:ring-primary/30 dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-primary/60 dark:ring-offset-slate-800 text-primary"
                     />
                     </div>

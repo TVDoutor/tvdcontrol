@@ -1,29 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 import { useNavigate } from 'react-router-dom';
-
-// Mock Data moved outside component to simulates DB
-const initialInventoryData = [
-  { id: 1, icon: "laptop_mac", name: 'MacBook Pro M1 14"', desc: 'Apple Silicon', sku: 'AST-00124', category: 'Computadores', qty: 15, status: 'available' },
-  { id: 2, icon: "smartphone", name: 'iPhone 13 128GB', desc: 'Midnight Blue', sku: 'AST-02399', category: 'Celulares', qty: 4, status: 'low' },
-  { id: 3, icon: "sim_card", name: 'Vivo SIM 4G/5G', desc: 'Corporativo', sku: 'SIM-9921', category: 'Chips', qty: 50, status: 'available' },
-  { id: 4, icon: "monitor", name: 'Dell UltraSharp 27"', desc: 'U2720Q 4K', sku: 'MON-44211', category: 'Monitores', qty: 8, status: 'available' },
-  { id: 5, icon: "keyboard", name: 'Logitech MX Keys', desc: 'Wireless', sku: 'PER-11234', category: 'Periféricos', qty: 22, status: 'available' },
-  { id: 6, icon: "smartphone", name: 'Samsung S23 Ultra', desc: 'Phantom Black', sku: 'AST-02400', category: 'Celulares', qty: 2, status: 'low' },
-];
-
-const chartData = [
-  { name: 'PC', value: 65, color: '#3b82f6' },
-  { name: 'Mac', value: 45, color: '#3b82f6' },
-  { name: 'iPhone', value: 35, color: '#3b82f6' },
-  { name: 'Android', value: 25, color: '#3b82f6' },
-  { name: 'SIM', value: 85, color: '#3b82f6' },
-  { name: 'Modem', value: 15, color: '#3b82f6' },
-];
+import { useInventoryStore } from '../store/InventoryStore';
+import type { InventoryItem } from '../types';
+import { DropdownField } from '../components/Dropdown';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [items, setItems] = useState(initialInventoryData);
+  const { items, isLoading, error } = useInventoryStore();
   const [searchQuery, setSearchQuery] = useState('');
   
   // Filter States
@@ -33,20 +17,20 @@ const Dashboard: React.FC = () => {
       status: 'all'
   });
 
-  // Low Stock Alert States
-  const [showLowStockAlert, setShowLowStockAlert] = useState(false);
-  const [lowStockItems, setLowStockItems] = useState<typeof initialInventoryData>([]);
-
-  // Check for low stock on mount
-  useEffect(() => {
-      const criticalItems = items.filter(item => item.qty <= 2);
-      if (criticalItems.length > 0) {
-          setLowStockItems(criticalItems);
-          // Small delay for better UX (don't pop immediately on render)
-          const timer = setTimeout(() => setShowLowStockAlert(true), 1000);
-          return () => clearTimeout(timer);
-      }
-  }, [items]);
+  const getStatusLabel = (status: InventoryItem['status']) => {
+    switch (status) {
+      case 'available':
+        return 'Disponível';
+      case 'in_use':
+        return 'Em uso';
+      case 'maintenance':
+        return 'Manutenção';
+      case 'retired':
+        return 'Desativado';
+      default:
+        return status;
+    }
+  };
 
   // Derived state for filtered items
   const filteredItems = useMemo(() => {
@@ -54,11 +38,12 @@ const Dashboard: React.FC = () => {
         // Text Search Logic
         const lowerQuery = searchQuery.toLowerCase();
         const matchesSearch = 
-            item.name.toLowerCase().includes(lowerQuery) ||
-            item.desc.toLowerCase().includes(lowerQuery) ||
-            item.sku.toLowerCase().includes(lowerQuery) ||
-            item.category.toLowerCase().includes(lowerQuery) ||
-            (item.status === 'available' ? 'disponível' : 'baixo estoque').includes(lowerQuery);
+            (item.name || item.model || '').toLowerCase().includes(lowerQuery) ||
+            (item.desc || item.specs || '').toLowerCase().includes(lowerQuery) ||
+            (item.sku || '').toLowerCase().includes(lowerQuery) ||
+            (item.category || '').toLowerCase().includes(lowerQuery) ||
+            (item.location || '').toLowerCase().includes(lowerQuery) ||
+            getStatusLabel(item.status).toLowerCase().includes(lowerQuery);
 
         // Category Filter Logic
         const matchesCategory = activeFilters.category === 'all' || item.category === activeFilters.category;
@@ -68,23 +53,22 @@ const Dashboard: React.FC = () => {
 
         return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [items, searchQuery, activeFilters]);
+  }, [items, searchQuery, activeFilters, getStatusLabel]);
 
   // Export to CSV Function
   const handleExport = () => {
       // Define headers
-      const headers = ["Item", "Modelo/Desc", "SKU", "Categoria", "Quantidade", "Status"];
+      const headers = ["Item", "Modelo/Desc", "SKU", "Categoria", "Status"];
       
       // Convert data to CSV format
       const csvContent = [
           headers.join(","), // Header row
           ...filteredItems.map(item => [
-              `"${item.name}"`,
-              `"${item.desc}"`,
-              item.sku,
+              `"${item.name || item.model || ''}"`,
+              `"${item.desc || item.manufacturer || ''}"`,
+              item.sku || '',
               item.category,
-              item.qty,
-              item.status === 'available' ? 'Disponível' : 'Baixo Estoque'
+              getStatusLabel(item.status)
           ].join(",")) // Data rows
       ].join("\n");
 
@@ -100,85 +84,45 @@ const Dashboard: React.FC = () => {
       document.body.removeChild(link);
   };
 
-  const handleApplyFilters = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsFilterOpen(false);
-  };
-
   const clearFilters = () => {
       setActiveFilters({ category: 'all', status: 'all' });
       setSearchQuery('');
       setIsFilterOpen(false);
   };
 
-  // Handler for low stock item click
-  const handleReviewItem = (id: number) => {
-      setShowLowStockAlert(false);
-      navigate(`/item/${id}`);
-  };
-
   // Extract unique categories for filter dropdown
-  const uniqueCategories = Array.from(new Set(items.map(i => i.category)));
+  const uniqueCategories = useMemo(
+    () => Array.from(new Set(items.map((i) => i.category).filter(Boolean))),
+    [items]
+  );
+
+  const totalItems = items.length;
+  const inUseCount = items.filter((i) => i.status === 'in_use').length;
+  const availableCount = items.filter((i) => i.status === 'available').length;
+  const maintenanceCount = items.filter((i) => i.status === 'maintenance').length;
+
+  const chartData = useMemo(
+    () => {
+      const byCategory: Record<string, number> = {};
+      items.forEach((item) => {
+        const cat = item.category || 'Outros';
+        byCategory[cat] = (byCategory[cat] ?? 0) + 1;
+      });
+      return Object.entries(byCategory).map(([name, value]) => ({
+        name,
+        value,
+        color: '#3b82f6',
+      }));
+    },
+    [items]
+  );
 
   return (
     <div className="flex-1 px-4 py-6 sm:px-8 bg-background-light dark:bg-background-dark overflow-y-auto relative scroll-smooth">
-      
-      {/* Low Stock Alert Modal */}
-      {showLowStockAlert && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-              <div className="bg-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md overflow-hidden border-2 border-red-100 dark:border-red-900/30 animate-in zoom-in-95 duration-200">
-                  <div className="p-6 pb-0 flex flex-col items-center text-center">
-                      <div className="size-14 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center mb-4 ring-4 ring-red-50 dark:ring-red-900/10 animate-bounce">
-                           <span className="material-symbols-outlined text-[32px]">warning</span>
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Alerta de Estoque Crítico</h3>
-                      <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm">
-                          Os seguintes itens atingiram o nível mínimo de segurança (2 ou menos unidades). <br/>
-                          <span className="font-medium text-slate-700 dark:text-slate-300">Clique no item para gerenciar.</span>
-                      </p>
-                  </div>
-                  
-                  <div className="p-6">
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700 max-h-[200px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
-                          {lowStockItems.map(item => (
-                              <div 
-                                key={item.id} 
-                                onClick={() => handleReviewItem(item.id)}
-                                className="p-3 flex items-center justify-between cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition-all group"
-                                title="Clique para editar este item"
-                              >
-                                  <div className="flex items-center gap-3 overflow-hidden">
-                                      <div className="size-8 rounded bg-white dark:bg-slate-700 border border-slate-100 dark:border-slate-600 flex items-center justify-center shrink-0 text-slate-500 group-hover:text-primary group-hover:border-primary/30 transition-colors">
-                                          <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
-                                      </div>
-                                      <div className="flex flex-col min-w-0">
-                                          <span className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">{item.name}</span>
-                                          <span className="text-xs text-slate-500 truncate">SKU: {item.sku}</span>
-                                      </div>
-                                  </div>
-                                  <div className="pl-2 shrink-0 flex items-center gap-2">
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-900/50">
-                                          {item.qty} un.
-                                      </span>
-                                      <span className="material-symbols-outlined text-[18px] text-slate-400 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all">
-                                          arrow_forward
-                                      </span>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 flex justify-center">
-                      <button 
-                          onClick={() => setShowLowStockAlert(false)}
-                          className="w-full py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity"
-                      >
-                          Fechar Alerta
-                      </button>
-                  </div>
-              </div>
-          </div>
+      {error && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Erro ao carregar inventário: {error}
+        </div>
       )}
 
       {/* Filter Modal */}
@@ -192,31 +136,33 @@ const Dashboard: React.FC = () => {
                       </button>
                   </div>
                   <div className="p-5 flex flex-col gap-4">
-                      <div className="flex flex-col gap-2">
-                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Categoria</label>
-                          <select 
-                            value={activeFilters.category}
-                            onChange={(e) => setActiveFilters(prev => ({...prev, category: e.target.value}))}
-                            className="w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-                          >
-                              <option value="all">Todas as Categorias</option>
-                              {uniqueCategories.map(cat => (
-                                  <option key={cat} value={cat}>{cat}</option>
-                              ))}
-                          </select>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
-                          <select 
-                            value={activeFilters.status}
-                            onChange={(e) => setActiveFilters(prev => ({...prev, status: e.target.value}))}
-                            className="w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary"
-                          >
-                              <option value="all">Todos os Status</option>
-                              <option value="available">Disponível</option>
-                              <option value="low">Baixo Estoque</option>
-                          </select>
-                      </div>
+                      <DropdownField
+                        label="Categoria"
+                        value={activeFilters.category}
+                        options={[
+                          { value: 'all', label: 'Todas as Categorias', icon: 'category' },
+                          ...uniqueCategories.map((cat) => ({ value: cat, label: cat, icon: 'category' })),
+                        ]}
+                        wrapperClassName="flex flex-col gap-2"
+                        labelClassName="text-sm font-semibold text-slate-700 dark:text-slate-300"
+                        buttonClassName="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary h-11 px-3 outline-none transition-all text-left flex items-center justify-between cursor-pointer"
+                        onValueChange={(value) => setActiveFilters((prev) => ({ ...prev, category: value }))}
+                      />
+                      <DropdownField
+                        label="Status"
+                        value={activeFilters.status}
+                        options={[
+                          { value: 'all', label: 'Todos os Status', icon: 'list' },
+                          { value: 'available', label: 'Disponível', icon: 'check_circle' },
+                          { value: 'in_use', label: 'Em uso', icon: 'devices' },
+                          { value: 'maintenance', label: 'Manutenção', icon: 'build' },
+                          { value: 'retired', label: 'Desativado', icon: 'block' },
+                        ]}
+                        wrapperClassName="flex flex-col gap-2"
+                        labelClassName="text-sm font-semibold text-slate-700 dark:text-slate-300"
+                        buttonClassName="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-primary focus:border-primary h-11 px-3 outline-none transition-all text-left flex items-center justify-between cursor-pointer"
+                        onValueChange={(value) => setActiveFilters((prev) => ({ ...prev, status: value }))}
+                      />
                   </div>
                   <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex gap-3">
                       <button onClick={clearFilters} className="flex-1 py-2 px-3 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">Limpar</button>
@@ -238,10 +184,10 @@ const Dashboard: React.FC = () => {
 
         {/* KPI Stats */}
         <section aria-label="Key Performance Indicators" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-          <StatCard title="Total em Estoque" value="1,450" change="5%" isPositive={true} icon="inventory" color="blue" />
-          <StatCard title="Computadores" value="320" change="2%" isPositive={true} icon="computer" color="purple" />
-          <StatCard title="Celulares" value="150" change="1%" isPositive={false} icon="smartphone" color="orange" />
-          <StatCard title="Chips & Acess." value="980" change="12%" isPositive={true} icon="sim_card" color="teal" />
+          <StatCard title="Total de Ativos" value={String(totalItems)} change="" isPositive={true} icon="inventory" color="blue" />
+          <StatCard title="Em Uso" value={String(inUseCount)} change="" isPositive={true} icon="devices" color="purple" />
+          <StatCard title="Em Manutenção" value={String(maintenanceCount)} change="" isPositive={true} icon="build" color="orange" />
+          <StatCard title="Disponíveis" value={String(availableCount)} change="" isPositive={true} icon="check_circle" color="teal" />
         </section>
 
         {/* Chart Section */}
@@ -249,11 +195,11 @@ const Dashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <div>
               <h3 className="text-slate-900 dark:text-white text-lg font-bold">Distribuição por Categoria</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">Volume atual comparado ao mês anterior</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">Itens atuais agrupados por categoria</p>
             </div>
             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">
-              <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-              Este Mês
+              <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+              Atual
             </div>
           </div>
           
@@ -315,29 +261,35 @@ const Dashboard: React.FC = () => {
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Item / Modelo</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">SKU</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Categoria</th>
-                     <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Quantidade</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Status</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider text-right">Ações</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                    {filteredItems.length > 0 ? (
-                        filteredItems.map((item, index) => (
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                          Carregando inventário...
+                        </td>
+                      </tr>
+                    ) : filteredItems.length > 0 ? (
+                        filteredItems.slice(0, 8).map((item, index) => (
                             <TableRow 
                                 key={item.id}
-                                icon={item.icon} 
-                                name={item.name} 
-                                desc={item.desc} 
-                                sku={item.sku} 
+                                id={item.id}
+                                icon={item.icon || 'inventory_2'} 
+                                name={item.name || item.model} 
+                                desc={item.desc || item.manufacturer} 
+                                sku={item.sku || '-'} 
                                 category={item.category} 
-                                qty={`${item.qty} un.`} 
-                                status={item.status} 
+                                status={item.status}
                                 index={index}
+                                onOpen={(id) => navigate(`/item/${id}`)}
                             />
                         ))
                     ) : (
                         <tr>
-                            <td colSpan={6} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                            <td colSpan={5} className="p-12 text-center text-slate-500 dark:text-slate-400">
                                 <div className="flex flex-col items-center justify-center gap-3">
                                     <div className="size-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                         <span className="material-symbols-outlined text-[32px] text-slate-400">search_off</span>
@@ -359,7 +311,7 @@ const Dashboard: React.FC = () => {
              </div>
              <div className="p-4 border-t border-border-light dark:border-border-dark flex items-center justify-between">
                 <span className="text-sm text-slate-500 dark:text-slate-400">
-                    Mostrando {filteredItems.length} de {items.length} items
+                    Mostrando {Math.min(filteredItems.length, 8)} de {filteredItems.length} itens filtrados
                 </span>
                 <div className="flex items-center gap-2">
                     <button className="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-50 transition-colors" disabled><span className="material-symbols-outlined">chevron_left</span></button>
@@ -402,10 +354,33 @@ const StatCard = ({ title, value, change, isPositive, icon, color }: any) => {
     );
 };
 
-const TableRow = ({ icon, name, desc, sku, category, qty, status, index }: any) => (
+type TableRowProps = {
+  id: string;
+  icon: string;
+  name: string;
+  desc: string;
+  sku: string;
+  category: string;
+  status: InventoryItem['status'];
+  index: number;
+  onOpen: (id: string) => void;
+};
+
+const TableRow: React.FC<TableRowProps> = ({ id, icon, name, desc, sku, category, status, index, onOpen }) => {
+    const statusMeta =
+        status === 'available'
+            ? { dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', label: 'Disponível' }
+            : status === 'in_use'
+                ? { dot: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-400', label: 'Em uso' }
+                : status === 'maintenance'
+                    ? { dot: 'bg-orange-500', text: 'text-orange-700 dark:text-orange-400', label: 'Manutenção' }
+                    : { dot: 'bg-slate-400', text: 'text-slate-700 dark:text-slate-300', label: 'Desativado' };
+
+    return (
     <tr 
         className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-default animate-in fade-in slide-in-from-bottom-2 fill-mode-forwards"
         style={{ animationDelay: `${index * 50}ms` }}
+        onClick={() => onOpen(id)}
     >
         <td className="p-4">
             <div className="flex items-center gap-3">
@@ -420,23 +395,30 @@ const TableRow = ({ icon, name, desc, sku, category, qty, status, index }: any) 
         </td>
         <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{sku}</td>
         <td className="p-4"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">{category}</span></td>
-        <td className="p-4 text-sm text-slate-900 dark:text-white font-medium">{qty}</td>
         <td className="p-4">
             <div className="flex items-center gap-1.5">
-                <span className={`h-1.5 w-1.5 rounded-full ${status === 'available' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
-                <span className={`text-sm font-medium ${status === 'available' ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                    {status === 'available' ? 'Disponível' : 'Baixo Estoque'}
+                <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`}></span>
+                <span className={`text-sm font-medium ${statusMeta.text}`}>
+                    {statusMeta.label}
                 </span>
             </div>
         </td>
         <td className="p-4 text-right">
              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="text-slate-400 hover:text-primary transition-colors p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700" title="Editar">
+                <button
+                    className="text-slate-400 hover:text-primary transition-colors p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+                    title="Ver detalhes"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onOpen(id);
+                    }}
+                >
                     <span className="material-symbols-outlined text-[20px]">edit</span>
                 </button>
             </div>
         </td>
     </tr>
-);
+    );
+};
 
 export default Dashboard;

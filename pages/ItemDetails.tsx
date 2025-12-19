@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useInventoryStore } from '../store/InventoryStore';
+import { useUsersStore } from '../store/UsersStore';
 
 const ItemDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
+  const itemId = params.id ? String(params.id) : '';
+  const { getById, updateItem, loadHistory, historyById, assignItem, returnItem } = useInventoryStore();
+  const { users } = useUsersStore();
   const [isEditing, setIsEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -16,34 +22,41 @@ const ItemDetails: React.FC = () => {
       }
   }, [location]);
   
-  // Estado para o usuário atribuído
-  const [assignedUser, setAssignedUser] = useState<{name: string, role: string, dept: string, avatar: string} | null>({
-      name: "Carlos Silva",
-      role: "Desenvolvedor Senior",
-      dept: "TI",
-      avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbGIA-lE6JAC8kMS-geX8694U8CNcMS7Mrt_W-4b2JKO3DGoSJVpFguTeXRLi9tgkoFrd9F4RUQwDhlLCW-eD4gaBcrQyJrCFPUDnR2vqSRvQ9yiz1oeMcMHCmj3hv4MBSK05UcNtZcoinRcqPxZAG3-q4FOnPWqwgoEfngpwZfTJO4uTknX1Wtj23h6Gz8ElpQ8stkCJh-0SA8NKQ8E1z6pGFbNUE7ELxEC47U1fuJk80yEtMjvyJPkisb4sysnn33Z8hmiyhzZw"
-  });
+  const item = itemId ? getById(itemId) : undefined;
+  const historyEvents = itemId ? historyById[itemId] : undefined;
+  const assignedUser = item?.assignedTo ? users.find((u) => u.id === item.assignedTo) : undefined;
 
-  // Estado para o histórico (para permitir adição dinâmica)
-  const [historyEvents, setHistoryEvents] = useState([
-      { color: "primary", date: "Hoje, 09:30", title: "Check-in de Manutenção", desc: "Atualização de sistema operacional realizada." },
-      { color: "slate", date: "12 Jan 2023", title: "Atribuído a Carlos Silva", desc: "Aprovado por: Ana Gerente" },
-      { color: "slate", date: "10 Jan 2023", title: "Adicionado ao Inventário", desc: "Recebido via Fornecedor X - NF 9942" },
-      { color: "slate", date: "05 Jan 2023", title: "Pedido de Compra Aprovado", desc: "Orçamento anual de TI" },
-      { color: "slate", date: "02 Jan 2023", title: "Solicitação de Compra", desc: "Solicitante: Gestão de Engenharia" }
-  ]);
+  useEffect(() => {
+    if (itemId) {
+      void loadHistory(itemId);
+    }
+  }, [itemId, loadHistory]);
 
   // Estado do formulário
   const [formData, setFormData] = useState({
-      manufacturer: "Apple Inc.",
-      model: 'MacBook Pro 16" (2021)',
-      category: "Laptops / Engenharia",
-      location: "Escritório SP - Andar 2",
-      price: "R$ 18.500,00",
-      purchaseDate: "2022-12-15",
-      warrantyEnd: "2025-12-15",
-      description: "Chip Apple M1 Max com CPU de 10 núcleos e GPU de 32 núcleos, 32GB de memória unificada, SSD de 1TB. Cor: Cinza Espacial. Acompanha carregador original 140W USB-C."
+      manufacturer: '',
+      model: '',
+      category: '',
+      location: '',
+      price: '',
+      purchaseDate: '',
+      warrantyEnd: '',
+      description: ''
   });
+
+  useEffect(() => {
+    if (!item) return;
+    setFormData({
+      manufacturer: item.manufacturer || '',
+      model: item.model || '',
+      category: item.category || '',
+      location: item.location || '',
+      price: item.purchasePrice ? `R$ ${item.purchasePrice.toLocaleString('pt-BR')}` : '',
+      purchaseDate: item.purchaseDate || '',
+      warrantyEnd: item.warrantyEnd || '',
+      description: item.specs || item.notes || '',
+    });
+  }, [item?.id]);
 
   const formatDateDisplay = (isoDate: string) => {
     if (!isoDate) return '-';
@@ -87,44 +100,58 @@ const ItemDetails: React.FC = () => {
           return;
       }
 
+      if (!item) return;
+
+      const priceNumber = formData.price
+        ? Number(String(formData.price).replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.'))
+        : undefined;
+
+      void updateItem({
+        id: item.id,
+        manufacturer: formData.manufacturer,
+        model: formData.model,
+        category: formData.category,
+        location: formData.location,
+        purchaseDate: formData.purchaseDate,
+        warrantyEnd: formData.warrantyEnd,
+        purchasePrice: Number.isFinite(priceNumber as number) ? (priceNumber as number) : undefined,
+        specs: formData.description,
+      });
+
       setIsEditing(false);
   };
 
   const handleReturnItem = () => {
-      if (!assignedUser) return;
-
-      // Adicionar evento ao histórico indicando devolução
-      const newEvent = {
-          color: "success",
-          date: "Hoje, " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          title: `Devolvido por ${assignedUser.name}`,
-          desc: "Item retornado ao estoque. Status alterado para Disponível."
-      };
-      
-      setHistoryEvents(prev => [newEvent, ...prev]);
-      setAssignedUser(null); // Isso redefine o status visualmente para 'Disponível'
-      // Aqui entraria a chamada de API
+      if (!item || !item.assignedTo) return;
+      void returnItem(item.id);
   };
 
   const handleAssignItem = () => {
-      // Simulação de reatribuição
-      const newEvent = {
-          color: "primary",
-          date: "Hoje, " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          title: "Atribuído a Novo Usuário",
-          desc: "Retirado no balcão de TI."
-      };
-      setHistoryEvents(prev => [newEvent, ...prev]);
-      setAssignedUser({
-          name: "Mariana Jones",
-          role: "UX Designer",
-          dept: "Criação",
-          avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbGIA-lE6JAC8kMS-geX8694U8CNcMS7Mrt_W-4b2JKO3DGoSJVpFguTeXRLi9tgkoFrd9F4RUQwDhlLCW-eD4gaBcrQyJrCFPUDnR2vqSRvQ9yiz1oeMcMHCmj3hv4MBSK05UcNtZcoinRcqPxZAG3-q4FOnPWqwgoEfngpwZfTJO4uTknX1Wtj23h6Gz8ElpQ8stkCJh-0SA8NKQ8E1z6pGFbNUE7ELxEC47U1fuJk80yEtMjvyJPkisb4sysnn33Z8hmiyhzZw"
-      });
+      if (!item) return;
+      // Por enquanto atribui ao primeiro usuário "não-admin" disponível; em produção vira modal de seleção.
+      const target = users.find((u) => u.id !== 'admin') || users[0];
+      if (!target) return;
+      void assignItem(item.id, target.id);
   };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-background-light dark:bg-background-dark p-6 relative">
+        {!item && (
+          <div className="max-w-[1200px] mx-auto w-full">
+            <div className="rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark p-6">
+              <p className="text-slate-700 dark:text-slate-300 text-sm">
+                Item não encontrado (ID: {itemId || '-'})
+              </p>
+              <button
+                onClick={() => navigate('/inventory')}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white font-bold text-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                Voltar ao Inventário
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Modal de Histórico */}
         {showHistory && (
@@ -138,8 +165,8 @@ const ItemDetails: React.FC = () => {
                     </div>
                     <div className="p-6 overflow-y-auto">
                         <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-8">
-                            {historyEvents.map((event, idx) => (
-                                <TimelineEvent key={idx} {...event} />
+                            {(historyEvents || []).map((event) => (
+                                <TimelineEvent key={event.id} {...event} />
                             ))}
                         </div>
                     </div>
@@ -184,7 +211,9 @@ const ItemDetails: React.FC = () => {
                             <div className="flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 text-xs font-bold uppercase tracking-wider">Disponível</div>
                         )}
                     </div>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">Número de Série: <span className="font-mono text-slate-700 dark:text-slate-300">C02XD12345</span> • Adicionado em 10 Jan 2023</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">
+                      Número de Série: <span className="font-mono text-slate-700 dark:text-slate-300">{item?.serialNumber || '-'}</span>
+                    </p>
                 </div>
                  <div className="flex items-center gap-3 self-end md:self-auto">
                     <button 
@@ -369,7 +398,7 @@ const ItemDetails: React.FC = () => {
                                     </div>
                                     <h4 className="text-lg font-bold text-slate-900 dark:text-white">{assignedUser.name}</h4>
                                     <p className="text-sm text-slate-500 dark:text-slate-400">{assignedUser.role}</p>
-                                    <p className="text-xs text-slate-400 mt-1">{assignedUser.dept}</p>
+                                    <p className="text-xs text-slate-400 mt-1">{assignedUser.department}</p>
                                     <div className="w-full mt-6 flex gap-3">
                                         <button onClick={() => navigate('/users')} className="flex-1 py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Ver Perfil</button>
                                         <button 
@@ -404,8 +433,8 @@ const ItemDetails: React.FC = () => {
                         </div>
                         <div className="p-6">
                             <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-6">
-                                {historyEvents.slice(0, 3).map((event, idx) => (
-                                    <TimelineEvent key={idx} {...event} />
+                                {(historyEvents || []).slice(0, 3).map((event) => (
+                                    <TimelineEvent key={event.id} {...event} />
                                 ))}
                             </div>
                             <button onClick={() => setShowHistory(true)} className="w-full mt-6 py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors uppercase tracking-wide">Ver Histórico Completo</button>

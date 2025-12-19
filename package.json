@@ -5,7 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "dev:frontend": "vite",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:full": "concurrently -n frontend,backend -c blue,green \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "build:frontend": "vite build",
+    "build:backend": "npm --prefix backend run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "type-check": "npx tsc --noEmit && npm --prefix backend run type-check",
+    "start": "node backend/dist/index.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

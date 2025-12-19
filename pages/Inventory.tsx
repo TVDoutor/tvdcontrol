@@ -1,23 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-// Extended Mock Data for Inventory List
-const mockInventoryItems = [
-  { id: 1, icon: "laptop_mac", name: 'MacBook Pro M1 14"', desc: 'Apple Silicon', sku: 'AST-00124', category: 'Computadores', location: 'Escritório SP - Andar 2', purchaseDate: '15 Dez 2022', status: 'in_use' },
-  { id: 2, icon: "smartphone", name: 'iPhone 13 128GB', desc: 'Midnight Blue', sku: 'AST-02399', category: 'Celulares', location: 'Empréstimo (Carlos M.)', purchaseDate: '10 Jan 2023', status: 'in_use' },
-  { id: 3, icon: "sim_card", name: 'Vivo SIM 4G/5G', desc: 'Corporativo', sku: 'SIM-9921', category: 'Chips', location: 'Estoque TI', purchaseDate: '05 Mar 2023', status: 'available' },
-  { id: 4, icon: "monitor", name: 'Dell UltraSharp 27"', desc: 'U2720Q 4K', sku: 'MON-44211', category: 'Monitores', location: 'Escritório SP - Andar 2', purchaseDate: '20 Out 2022', status: 'available' },
-  { id: 5, icon: "keyboard", name: 'Logitech MX Keys', desc: 'Wireless', sku: 'PER-11234', category: 'Periféricos', location: 'Estoque TI', purchaseDate: '01 Fev 2023', status: 'available' },
-  { id: 6, icon: "smartphone", name: 'Samsung S23 Ultra', desc: 'Phantom Black', sku: 'AST-02400', category: 'Celulares', location: 'Manutenção', purchaseDate: '15 Jan 2023', status: 'maintenance' },
-  { id: 7, icon: "laptop_windows", name: 'Dell XPS 15', desc: 'i9 12th Gen', sku: 'AST-00552', category: 'Computadores', location: 'Estoque TI', purchaseDate: '12 Nov 2022', status: 'available' },
-  { id: 8, icon: "headphones", name: 'Sony WH-1000XM4', desc: 'Noise Cancelling', sku: 'ACC-3310', category: 'Acessórios', location: 'Escritório SP - Andar 3', purchaseDate: '05 Dez 2022', status: 'in_use' },
-  { id: 9, icon: "tablet_mac", name: 'iPad Pro 11"', desc: 'M2 Chip', sku: 'AST-09912', category: 'Tablets', location: 'Estoque TI', purchaseDate: '22 Abr 2023', status: 'available' },
-  { id: 10, icon: "print", name: 'HP LaserJet Pro', desc: 'M404dw', sku: 'PRT-1122', category: 'Impressoras', location: 'Escritório SP - Recepção', purchaseDate: '10 Set 2022', status: 'in_use' },
-];
+import { useInventoryStore } from '../store/InventoryStore';
+import { useAuthStore } from '../store/AuthStore';
+import { canCreate, canUpdate, canDelete } from '../utils/permissions';
+import { Dropdown } from '../components/Dropdown';
 
 const Inventory: React.FC = () => {
   const navigate = useNavigate();
-  const [items, setItems] = useState(mockInventoryItems);
+  const { items, isLoading, error, deleteItem } = useInventoryStore();
+  const { user: currentUser } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState({
       category: 'all',
@@ -33,7 +24,7 @@ const Inventory: React.FC = () => {
   const itemsPerPage = 5; // Definido como 5 para demonstrar a paginação com os 10 itens de exemplo
 
   // Unique categories for filter
-  const uniqueCategories = Array.from(new Set(items.map(i => i.category)));
+  const uniqueCategories = Array.from(new Set(items.map(i => i.category).filter(Boolean)));
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -45,10 +36,10 @@ const Inventory: React.FC = () => {
     return items.filter(item => {
         const lowerQuery = searchQuery.toLowerCase();
         const matchesSearch = 
-            item.name.toLowerCase().includes(lowerQuery) ||
-            item.desc.toLowerCase().includes(lowerQuery) ||
-            item.sku.toLowerCase().includes(lowerQuery) ||
-            item.location.toLowerCase().includes(lowerQuery);
+            (item.name || item.model || '').toLowerCase().includes(lowerQuery) ||
+            (item.desc || item.specs || '').toLowerCase().includes(lowerQuery) ||
+            (item.sku || '').toLowerCase().includes(lowerQuery) ||
+            (item.location || '').toLowerCase().includes(lowerQuery);
 
         const matchesCategory = activeFilters.category === 'all' || item.category === activeFilters.category;
         const matchesStatus = activeFilters.status === 'all' || item.status === activeFilters.status;
@@ -89,7 +80,7 @@ const Inventory: React.FC = () => {
 
   const confirmDelete = () => {
       if (itemToDelete) {
-          setItems(prev => prev.filter(i => i.id !== itemToDelete.id));
+          void deleteItem(String(itemToDelete.id));
           setShowDeleteModal(false);
           setItemToDelete(null);
           
@@ -107,6 +98,11 @@ const Inventory: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-background-dark relative">
+       {error && (
+         <div className="mx-4 mt-4 md:mx-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+           Erro ao carregar inventário: {error}
+         </div>
+       )}
        
        {/* Modal de Confirmação de Exclusão */}
        {showDeleteModal && (
@@ -149,13 +145,15 @@ const Inventory: React.FC = () => {
                     <h1 className="text-slate-900 dark:text-white text-3xl font-black leading-tight tracking-[-0.033em]">Inventário Completo</h1>
                     <p className="text-slate-500 dark:text-slate-400 text-base font-normal">Gerencie todos os ativos, localizações e atribuições.</p>
                 </div>
-                <button 
-                    onClick={() => navigate('/items/add')}
-                    className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm shadow-primary/30 transition-all active:scale-95"
-                >
-                    <span className="material-symbols-outlined text-[20px]">add</span>
-                    <span>Novo Item</span>
-                </button>
+                {canCreate(currentUser) && (
+                    <button 
+                        onClick={() => navigate('/items/add')}
+                        className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm shadow-primary/30 transition-all active:scale-95"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add</span>
+                        <span>Novo Item</span>
+                    </button>
+                )}
             </div>
 
             {/* Filters Toolbar */}
@@ -172,29 +170,29 @@ const Inventory: React.FC = () => {
                         />
                     </div>
                     <div className="md:col-span-3">
-                         <select 
+                         <Dropdown
                             value={activeFilters.category}
-                            onChange={(e) => setActiveFilters(prev => ({...prev, category: e.target.value}))}
-                            className="w-full py-2.5 pl-3 pr-10 bg-background-light dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-slate-700 dark:text-white cursor-pointer"
-                        >
-                            <option value="all">Todas as Categorias</option>
-                            {uniqueCategories.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                         </select>
+                            options={[
+                              { value: 'all', label: 'Todas as Categorias', icon: 'category' },
+                              ...uniqueCategories.map((cat) => ({ value: cat, label: cat, icon: 'category' })),
+                            ]}
+                            buttonClassName="w-full py-2.5 px-3 bg-background-light dark:bg-background-dark border border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-slate-700 dark:text-white cursor-pointer text-left flex items-center justify-between"
+                            onValueChange={(value) => setActiveFilters((prev) => ({ ...prev, category: value }))}
+                          />
                     </div>
                      <div className="md:col-span-3">
-                         <select 
+                         <Dropdown
                             value={activeFilters.status}
-                            onChange={(e) => setActiveFilters(prev => ({...prev, status: e.target.value}))}
-                            className="w-full py-2.5 pl-3 pr-10 bg-background-light dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-slate-700 dark:text-white cursor-pointer"
-                        >
-                            <option value="all">Todos os Status</option>
-                            <option value="available">Disponível</option>
-                            <option value="in_use">Em Uso</option>
-                            <option value="maintenance">Manutenção</option>
-                            <option value="retired">Desativado</option>
-                         </select>
+                            options={[
+                              { value: 'all', label: 'Todos os Status', icon: 'list' },
+                              { value: 'available', label: 'Disponível', icon: 'check_circle' },
+                              { value: 'in_use', label: 'Em Uso', icon: 'devices' },
+                              { value: 'maintenance', label: 'Manutenção', icon: 'build' },
+                              { value: 'retired', label: 'Desativado', icon: 'block' },
+                            ]}
+                            buttonClassName="w-full py-2.5 px-3 bg-background-light dark:bg-background-dark border border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-slate-700 dark:text-white cursor-pointer text-left flex items-center justify-between"
+                            onValueChange={(value) => setActiveFilters((prev) => ({ ...prev, status: value }))}
+                          />
                     </div>
                 </div>
             </div>
@@ -218,7 +216,13 @@ const Inventory: React.FC = () => {
                             key={`${currentPage}-${searchQuery}-${activeFilters.category}-${activeFilters.status}`}
                             className="divide-y divide-border-light dark:divide-border-dark"
                         >
-                            {currentItems.length > 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                  <td colSpan={7} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                                    Carregando inventário...
+                                  </td>
+                                </tr>
+                            ) : currentItems.length > 0 ? (
                                 currentItems.map((item, index) => (
                                     <tr 
                                         key={item.id}
@@ -229,20 +233,20 @@ const Inventory: React.FC = () => {
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="bg-slate-100 dark:bg-slate-800 rounded-lg w-10 h-10 flex items-center justify-center text-slate-500 group-hover:text-primary group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors border border-transparent group-hover:border-slate-200 dark:group-hover:border-slate-600">
-                                                    <span className="material-symbols-outlined transition-transform group-hover:scale-110">{item.icon}</span>
+                                                    <span className="material-symbols-outlined transition-transform group-hover:scale-110">{item.icon || 'inventory_2'}</span>
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-medium text-slate-900 dark:text-white">{item.name}</p>
-                                                    <p className="text-xs text-slate-500">{item.desc}</p>
+                                                    <p className="text-sm font-medium text-slate-900 dark:text-white">{item.name || item.model}</p>
+                                                    <p className="text-xs text-slate-500">{item.desc || item.manufacturer}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono hidden sm:table-cell">{item.sku}</td>
+                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono hidden sm:table-cell">{item.sku || '-'}</td>
                                         <td className="p-4 hidden md:table-cell"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">{item.category}</span></td>
                                         <td className="p-4 text-sm text-slate-600 dark:text-slate-400 hidden lg:table-cell">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="material-symbols-outlined text-[16px] text-slate-400">location_on</span>
-                                                {item.location}
+                                                {item.location || '-'}
                                             </div>
                                         </td>
                                         <td className="p-4 text-sm text-slate-600 dark:text-slate-400 hidden xl:table-cell">{item.purchaseDate}</td>
@@ -258,23 +262,27 @@ const Inventory: React.FC = () => {
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">visibility</span>
                                                 </button>
-                                                <button 
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); 
-                                                        navigate(`/item/${item.id}`, { state: { editMode: true } });
-                                                    }}
-                                                    className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" 
-                                                    title="Editar"
-                                                >
-                                                    <span className="material-symbols-outlined text-[20px]">edit</span>
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => handleDeleteClick(e, item)}
-                                                    className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" 
-                                                    title="Excluir"
-                                                >
-                                                    <span className="material-symbols-outlined text-[20px]">delete</span>
-                                                </button>
+                                                {canUpdate(currentUser) && (
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            navigate(`/item/${item.id}`, { state: { editMode: true } });
+                                                        }}
+                                                        className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" 
+                                                        title="Editar"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[20px]">edit</span>
+                                                    </button>
+                                                )}
+                                                {canDelete(currentUser) && (
+                                                    <button 
+                                                        onClick={(e) => handleDeleteClick(e, item)}
+                                                        className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" 
+                                                        title="Excluir"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[20px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
