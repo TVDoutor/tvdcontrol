@@ -55,6 +55,15 @@ export const Dropdown: React.FC<DropdownProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
+
+  useEffect(() => {
     const handleResize = () => {
       if (isOpen && buttonRef.current) {
         const rect = buttonRef.current.getBoundingClientRect();
@@ -83,13 +92,15 @@ export const Dropdown: React.FC<DropdownProps> = ({
 
   return (
     <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[9998]"
-          onClick={() => setIsOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      {isOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm"
+            onMouseDown={() => setIsOpen(false)}
+            aria-hidden="true"
+          />,
+          document.body
+        )}
       <button
         ref={buttonRef}
         type="button"
@@ -125,7 +136,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
         createPortal(
           <div
             style={menuStyle}
-            className={`bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden transition-all duration-200 origin-top ${
+            className={`!bg-white dark:!bg-surface-dark border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden transition-all duration-200 origin-top ${
               isOpen
                 ? 'opacity-100 translate-y-0 scale-100'
                 : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
@@ -192,12 +203,12 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
   ...dropdownProps
 }) => {
   return (
-    <label className={wrapperClassName} style={wrapperStyle}>
+    <div className={wrapperClassName} style={wrapperStyle}>
       <p className={labelClassName}>
         {label} {required ? <span className="text-red-500">*</span> : null}
       </p>
       <Dropdown {...dropdownProps} buttonClassName={buttonClassName} />
       {error ? <p className="text-red-500 text-xs mt-1 font-medium">{error}</p> : null}
-    </label>
+    </div>
   );
 };

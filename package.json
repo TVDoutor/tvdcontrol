@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev:full",
     "dev:frontend": "vite",
     "dev:backend": "npm --prefix backend run dev",
     "dev:full": "concurrently -n frontend,backend -c blue,green \"npm run dev:frontend\" \"npm run dev:backend\"",
@@ -13,18 +13,21 @@
     "build": "npm run build:frontend && npm run build:backend",
     "type-check": "npx tsc --noEmit && npm --prefix backend run type-check",
     "start": "node backend/dist/index.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tailwind:watch": "npx tailwindcss -i ./php-app/assets/css/input.css -o ./php-app/assets/css/output.css --watch",
+    "tailwind:build": "npx tailwindcss -i ./php-app/assets/css/input.css -o ./php-app/assets/css/output.css --minify"
   },
   "dependencies": {
-    "recharts": "^3.5.1",
-    "react-dom": "^19.2.1",
     "react": "^19.2.1",
-    "react-router-dom": "^7.10.1"
+    "react-dom": "^19.2.1",
+    "react-router-dom": "^7.10.1",
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^9.2.0",
+    "tailwindcss": "^3.4.19",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

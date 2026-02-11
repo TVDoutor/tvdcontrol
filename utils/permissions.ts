@@ -10,25 +10,19 @@ export function isAdministrator(user: User | null | undefined): boolean {
   return user?.role === 'Administrador';
 }
 
-// Verifica se o usuário é Gerente ou Administrador
-export function isManagerOrAdmin(user: User | null | undefined): boolean {
-  return user?.role === 'Administrador' || user?.role === 'Gerente';
-}
-
-// Verifica permissão para criar (todos podem criar)
+// Verifica permissão para criar (somente Administrador)
 export function canCreate(user: User | null | undefined): boolean {
-  return Boolean(user && isValidRole(user.role));
+  return isAdministrator(user);
 }
 
-// Verifica permissão para ler (todos podem ler)
+// Verifica permissão para ler (somente Administrador)
 export function canRead(user: User | null | undefined): boolean {
-  return Boolean(user && isValidRole(user.role));
+  return isAdministrator(user);
 }
 
-// Verifica permissão para atualizar
-// Administrador e Gerente podem atualizar
+// Verifica permissão para atualizar (somente Administrador)
 export function canUpdate(user: User | null | undefined): boolean {
-  return isManagerOrAdmin(user);
+  return isAdministrator(user);
 }
 
 // Verifica permissão para deletar

@@ -132,6 +132,7 @@ authRouter.get('/me', authenticateUser, async (req, res, next) => {
         id: userResponse.id,
         name: userResponse.name,
         email: userResponse.email,
+        phone: userResponse.phone ?? null,
         role: userResponse.role,
         department: userResponse.department,
         avatar: userResponse.avatar || '',
@@ -157,7 +158,7 @@ authRouter.put('/me', authenticateUser, async (req, res, next) => {
       return res.status(401).json({ error: 'Usuário não encontrado ou inativo' });
     }
 
-    const { name, department, avatar } = req.body ?? {};
+    const { name, department, avatar, phone } = req.body ?? {};
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -187,6 +188,15 @@ authRouter.put('/me', authenticateUser, async (req, res, next) => {
       values.push(normalizedAvatar.length > 0 ? normalizedAvatar : null);
     }
 
+    if (phone !== undefined) {
+      if (typeof phone !== 'string') {
+        return res.status(400).json({ error: 'Telefone inválido' });
+      }
+      const normalizedPhone = phone.trim();
+      updates.push('phone = ?');
+      values.push(normalizedPhone.length > 0 ? normalizedPhone : null);
+    }
+
     if (updates.length > 0) {
       values.push(userId);
       await query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
@@ -203,6 +213,7 @@ authRouter.put('/me', authenticateUser, async (req, res, next) => {
         id: userResponse.id,
         name: userResponse.name,
         email: userResponse.email,
+        phone: userResponse.phone ?? null,
         role: userResponse.role,
         department: userResponse.department,
         avatar: userResponse.avatar || '',
@@ -283,12 +294,17 @@ authRouter.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Email ou senha inválidos' });
     }
 
+    if (user.role !== 'Administrador' && user.role !== 'Gerente') {
+      return res.status(403).json({ error: 'Usuário sem acesso ao sistema' });
+    }
+
     // Return user without password_hash
     const { password_hash, ...userResponse } = user;
     const responseUser = {
       id: userResponse.id,
       name: userResponse.name,
       email: userResponse.email,
+      phone: userResponse.phone ?? null,
       role: userResponse.role,
       department: userResponse.department,
       avatar: userResponse.avatar || '',
@@ -390,6 +406,7 @@ authRouter.post('/register', async (req, res, next) => {
       id: userResponse.id,
       name: userResponse.name,
       email: userResponse.email,
+      phone: userResponse.phone ?? null,
       role: userResponse.role,
       department: userResponse.department,
       avatar: userResponse.avatar || '',

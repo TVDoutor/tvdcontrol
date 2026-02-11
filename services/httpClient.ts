@@ -95,7 +95,7 @@ export class HttpClient {
     if (now < cooldownUntil) return false;
 
     const inFlight = (async (): Promise<boolean> => {
-      const url = new URL('/auth/refresh', this.baseUrl).toString();
+      const url = this.buildUrl('/auth/refresh');
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -126,8 +126,16 @@ export class HttpClient {
     return inFlight;
   }
 
+  private buildUrl(path: string): string {
+    if (!this.baseUrl) return path;
+    if (path.startsWith('/')) {
+      return this.baseUrl.replace(/\/$/, '') + path;
+    }
+    return new URL(path, this.baseUrl).toString();
+  }
+
   private async requestInternal<T>(method: HttpMethod, path: string, body: unknown, didRefresh: boolean): Promise<T> {
-    const url = this.baseUrl ? new URL(path, this.baseUrl).toString() : path;
+    const url = this.buildUrl(path);
     const headers: Record<string, string> = { ...this.defaultHeaders };
 
     // Adiciona o token JWT quando disponível

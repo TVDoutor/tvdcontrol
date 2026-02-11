@@ -1,5 +1,5 @@
 import React from 'react';
-import type { User, UserRole } from '../../../types';
+import type { InventoryItem, User, UserRole } from '../../../types';
 import { canManageUsers } from '../../../utils/permissions';
 import { USER_ROLES } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
@@ -13,8 +13,10 @@ interface UserDrawerProps {
   currentUser: User | null | undefined;
   isEditing: boolean;
   isCreating: boolean;
-  editFormData: Partial<User>;
+  editFormData: (Partial<User> & { password?: string; confirmPassword?: string });
   errors: FieldErrors;
+  assignedItems: InventoryItem[];
+  onAddItems: () => void;
   extraContent?: React.ReactNode;
   onClose: () => void;
   onStartEditing: () => void;
@@ -33,6 +35,8 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
   isCreating,
   editFormData,
   errors,
+  assignedItems,
+  onAddItems,
   extraContent,
   onClose,
   onStartEditing,
@@ -50,18 +54,82 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
     ? ((isEditing ? editFormData.avatar : selectedUser.avatar) ?? selectedUser.avatar ?? '')
     : '';
 
+  const [avatarUploadError, setAvatarUploadError] = React.useState<string | null>(null);
+  const [isAvatarUploading, setIsAvatarUploading] = React.useState(false);
+
+  const compressAvatarFile = async (file: File): Promise<string> => {
+    const maxDataUrlLength = 60000;
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = objectUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+      });
+
+      const originalW = Math.max(1, img.naturalWidth || img.width || 1);
+      const originalH = Math.max(1, img.naturalHeight || img.height || 1);
+
+      const targets = [
+        { maxSide: 256, quality: 0.82 },
+        { maxSide: 224, quality: 0.78 },
+        { maxSide: 192, quality: 0.74 },
+        { maxSide: 160, quality: 0.7 },
+        { maxSide: 128, quality: 0.68 },
+      ];
+
+      for (const t of targets) {
+        const scale = Math.min(1, t.maxSide / Math.max(originalW, originalH));
+        const w = Math.max(1, Math.round(originalW * scale));
+        const h = Math.max(1, Math.round(originalH * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) continue;
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const webp = canvas.toDataURL('image/webp', t.quality);
+        if (webp.length <= maxDataUrlLength) return webp;
+
+        const jpeg = canvas.toDataURL('image/jpeg', Math.min(0.85, t.quality + 0.08));
+        if (jpeg.length <= maxDataUrlLength) return jpeg;
+      }
+
+      throw new Error('Imagem muito grande para salvar como avatar');
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        onAvatarChange(result);
+    setAvatarUploadError(null);
+    setIsAvatarUploading(true);
+    void (async () => {
+      try {
+        if (!file.type.startsWith('image/')) {
+          setAvatarUploadError('Arquivo inválido. Selecione uma imagem.');
+          return;
+        }
+        if (file.size > 8 * 1024 * 1024) {
+          setAvatarUploadError('Imagem muito grande. Use até 8MB.');
+          return;
+        }
+        const dataUrl = await compressAvatarFile(file);
+        onAvatarChange(dataUrl);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Falha ao processar imagem';
+        setAvatarUploadError(msg);
+      } finally {
+        setIsAvatarUploading(false);
       }
-    };
-    reader.readAsDataURL(file);
+    })();
     e.target.value = '';
   };
 
@@ -110,9 +178,9 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       />
                       <label
                         htmlFor={avatarInputId}
-                        className="cursor-pointer text-xs font-bold px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 transition-colors"
+                        className={`cursor-pointer text-xs font-bold px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 transition-colors ${isAvatarUploading ? 'opacity-60 pointer-events-none' : ''}`}
                       >
-                        Trocar foto
+                        {isAvatarUploading ? 'Processando...' : 'Trocar foto'}
                       </label>
                       <button
                         type="button"
@@ -122,6 +190,10 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                         Remover
                       </button>
                     </div>
+
+                    {avatarUploadError ? (
+                      <div className="text-xs text-red-600 dark:text-red-400">{avatarUploadError}</div>
+                    ) : null}
 
                     <div className="relative">
                       <input
@@ -166,11 +238,20 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       <label className="text-xs text-text-sub-light font-semibold">URL do avatar</label>
                       <input
                         name="avatar"
-                        value={editFormData.avatar || ''}
+                        value={
+                          typeof editFormData.avatar === 'string' && editFormData.avatar.startsWith('data:')
+                            ? ''
+                            : editFormData.avatar || ''
+                        }
                         onChange={onInputChange}
                         className="w-full text-center text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-2 text-slate-700 dark:text-slate-300 focus:ring-primary focus:border-primary outline-none"
                         placeholder="https://..."
                       />
+                      {typeof editFormData.avatar === 'string' && editFormData.avatar.startsWith('data:') ? (
+                        <span className="text-[11px] text-text-sub-light dark:text-text-sub-dark">
+                          Avatar carregado por upload local.
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ) : (
@@ -246,6 +327,16 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                         {errors.email && <span className="text-xs text-red-500">{errors.email}</span>}
                       </div>
                       <div className="flex flex-col gap-1">
+                        <label className="text-xs text-text-sub-light font-semibold">Telefone</label>
+                        <input
+                          name="phone"
+                          value={editFormData.phone || ''}
+                          onChange={onInputChange}
+                          className="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="(11) 99999-9999"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
                         <label className="text-xs text-text-sub-light font-semibold">Departamento</label>
                         <Dropdown
                           name="department"
@@ -255,12 +346,52 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                           onValueChange={(v) => emitChange('department', v)}
                         />
                       </div>
+                      {canManageUsers(currentUser) ? (
+                        <>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs text-text-sub-light font-semibold">Nova senha</label>
+                            <input
+                              type="password"
+                              name="password"
+                              value={editFormData.password || ''}
+                              onChange={onInputChange}
+                              autoComplete="new-password"
+                              className={`w-full text-sm bg-white dark:bg-slate-800 border rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none ${
+                                errors.password
+                                  ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                                  : 'border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:border-primary'
+                              }`}
+                              placeholder={isCreating ? 'Defina uma senha' : 'Deixe vazio para não alterar'}
+                            />
+                            {errors.password && <span className="text-xs text-red-500">{errors.password}</span>}
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs text-text-sub-light font-semibold">Confirmar senha</label>
+                            <input
+                              type="password"
+                              name="confirmPassword"
+                              value={editFormData.confirmPassword || ''}
+                              onChange={onInputChange}
+                              autoComplete="new-password"
+                              className={`w-full text-sm bg-white dark:bg-slate-800 border rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none ${
+                                errors.confirmPassword
+                                  ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                                  : 'border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:border-primary'
+                              }`}
+                              placeholder={isCreating ? 'Confirme a senha' : 'Confirme para alterar'}
+                            />
+                            {errors.confirmPassword && (
+                              <span className="text-xs text-red-500">{errors.confirmPassword}</span>
+                            )}
+                          </div>
+                        </>
+                      ) : null}
                     </>
                   ) : (
                     <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-1">
                       <ContactItem icon="mail" label="Email" value={selectedUser.email} />
                       <div className="border-t border-border-light dark:border-border-dark my-1"></div>
-                      <ContactItem icon="call" label="Telefone" value="+55 (11) 98765-4321" />
+                      <ContactItem icon="call" label="Telefone" value={selectedUser.phone || '-'} />
                       <div className="border-t border-border-light dark:border-border-dark my-1"></div>
                       <ContactItem icon="domain" label="Departamento" value={selectedUser.department} />
                     </div>
@@ -273,16 +404,26 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xs uppercase font-bold text-text-sub-light dark:text-text-sub-dark tracking-wider flex items-center gap-2">
                       <span className="material-symbols-outlined text-[16px]">inventory_2</span>
-                      Itens Atribuídos ({selectedUser.itemsCount})
+                      Itens Atribuídos ({assignedItems.length})
                     </h3>
-                    <button className="text-primary text-xs font-bold hover:underline bg-primary/10 px-2 py-1 rounded">
+                    <button
+                      onClick={onAddItems}
+                      className="text-primary text-xs font-bold hover:underline bg-primary/10 px-2 py-1 rounded"
+                    >
                       + Adicionar
                     </button>
                   </div>
-                  {selectedUser.itemsCount > 0 ? (
+                  {assignedItems.length > 0 ? (
                     <div className="space-y-3">
-                      <InventoryItemCard icon="laptop_mac" name='MacBook Pro 16"' serial="C02XD12345" date="12 Jan, 2024" />
-                      <InventoryItemCard icon="smartphone" name="iPhone 14" serial="G6T789012" date="15 Fev, 2024" />
+                      {assignedItems.map((item) => (
+                        <InventoryItemCard
+                          key={item.id}
+                          icon={item.icon || 'inventory_2'}
+                          name={item.name || item.model}
+                          serial={item.serialNumber}
+                          date={item.purchaseDate || '-'}
+                        />
+                      ))}
                     </div>
                   ) : (
                     <div className="p-6 rounded-xl bg-white dark:bg-surface-dark text-center border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center gap-2">

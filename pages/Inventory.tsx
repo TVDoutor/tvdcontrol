@@ -4,6 +4,7 @@ import { useInventoryStore } from '../store/InventoryStore';
 import { useAuthStore } from '../store/AuthStore';
 import { canCreate, canUpdate, canDelete } from '../utils/permissions';
 import { Dropdown } from '../components/Dropdown';
+import { getCategoryIcon } from './addItem/constants';
 
 const Inventory: React.FC = () => {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const Inventory: React.FC = () => {
             (item.name || item.model || '').toLowerCase().includes(lowerQuery) ||
             (item.desc || item.specs || '').toLowerCase().includes(lowerQuery) ||
             (item.sku || '').toLowerCase().includes(lowerQuery) ||
+            (item.serialNumber || '').toLowerCase().includes(lowerQuery) ||
             (item.location || '').toLowerCase().includes(lowerQuery);
 
         const matchesCategory = activeFilters.category === 'all' || item.category === activeFilters.category;
@@ -204,7 +206,7 @@ const Inventory: React.FC = () => {
                         <thead>
                             <tr className="border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
                                 <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Item / Modelo</th>
-                                <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider hidden sm:table-cell">Tag / SKU</th>
+                                <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider hidden sm:table-cell">Tag / SKU / Série</th>
                                 <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider hidden md:table-cell">Categoria</th>
                                 <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider hidden lg:table-cell">Localização</th>
                                 <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider hidden xl:table-cell">Data Compra</th>
@@ -233,7 +235,7 @@ const Inventory: React.FC = () => {
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="bg-slate-100 dark:bg-slate-800 rounded-lg w-10 h-10 flex items-center justify-center text-slate-500 group-hover:text-primary group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors border border-transparent group-hover:border-slate-200 dark:group-hover:border-slate-600">
-                                                    <span className="material-symbols-outlined transition-transform group-hover:scale-110">{item.icon || 'inventory_2'}</span>
+                                                    <span className="material-symbols-outlined transition-transform group-hover:scale-110">{getCategoryIcon(item.category)}</span>
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-medium text-slate-900 dark:text-white">{item.name || item.model}</p>
@@ -241,7 +243,14 @@ const Inventory: React.FC = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono hidden sm:table-cell">{item.sku || '-'}</td>
+                                        <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono hidden sm:table-cell">
+                                            <div className="flex flex-col">
+                                                <span>{item.sku || '-'}</span>
+                                                <span className="text-xs text-slate-400 dark:text-slate-500">
+                                                    Série: {item.serialNumber || '-'}
+                                                </span>
+                                            </div>
+                                        </td>
                                         <td className="p-4 hidden md:table-cell"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">{item.category}</span></td>
                                         <td className="p-4 text-sm text-slate-600 dark:text-slate-400 hidden lg:table-cell">
                                             <div className="flex items-center gap-1.5">

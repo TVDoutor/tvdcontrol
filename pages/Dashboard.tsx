@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useInventoryStore } from '../store/InventoryStore';
 import type { InventoryItem } from '../types';
 import { DropdownField } from '../components/Dropdown';
+import { getCategoryIcon } from './addItem/constants';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -277,7 +278,7 @@ const Dashboard: React.FC = () => {
                             <TableRow 
                                 key={item.id}
                                 id={item.id}
-                                icon={item.icon || 'inventory_2'} 
+                                icon={getCategoryIcon(item.category)} 
                                 name={item.name || item.model} 
                                 desc={item.desc || item.manufacturer} 
                                 sku={item.sku || '-'} 

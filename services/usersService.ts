@@ -2,8 +2,8 @@ import type { User } from '../types';
 import { HttpClient } from './httpClient';
 import { getApiBaseUrl } from './apiBaseUrl';
 
-export type CreateUserInput = Omit<User, 'id' | 'itemsCount'> & { itemsCount?: number };
-export type UpdateUserInput = Partial<Omit<User, 'id'>> & { id: string };
+export type CreateUserInput = Omit<User, 'id' | 'itemsCount'> & { itemsCount?: number; password?: string };
+export type UpdateUserInput = Partial<Omit<User, 'id'>> & { id: string; password?: string };
 
 export interface UsersService {
   list(): Promise<User[]>;
@@ -35,7 +35,7 @@ function createMockUsersService(): UsersService {
       id: '1',
       name: 'Carlos Mendes',
       email: 'carlos.m@empresa.com',
-      role: 'Gerente',
+      role: 'Administrador',
       department: 'TI',
       avatar:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuAi_ovget7gPlpDSqBP8Jn0k5FeGKjusgh0xFdi9ga1cloftOo_IVAYngAWT3bab5GRyxz1xcKdO9vP9WNB02H8XeDrAA_Sme1hCML9UPRLezgIku6dy5ZO-20DwKrntcnSXAI0K5J4TjYekIgEHzsYH-DJOm0Q9qWAFKOILHjbvBwlsHtakHJBHx1FaUhTi9B_l0kt91jgM4I89LReoJI_wQxZEgg8ZXlnKTjkexSbHgpfY4ndOpT_pxQZcl3MHWckxnLL8uKXlM0',
@@ -71,18 +71,20 @@ function createMockUsersService(): UsersService {
       return [...users];
     },
     async create(input) {
+      const { password: _password, ...userInput } = input;
       const newUser: User = {
         id: createId(),
         itemsCount: input.itemsCount ?? 0,
-        ...input,
+        ...userInput,
       };
       users = [newUser, ...users];
       return newUser;
     },
     async update(input) {
+      const { password: _password, ...userPatch } = input;
       const idx = users.findIndex((u) => u.id === input.id);
       if (idx === -1) throw new Error('User not found');
-      const updated: User = { ...users[idx], ...input };
+      const updated: User = { ...users[idx], ...userPatch };
       users = users.map((u) => (u.id === input.id ? updated : u));
       return updated;
     },

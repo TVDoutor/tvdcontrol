@@ -7,6 +7,46 @@ import { canCreate, canRead, canUpdate, canDelete } from '../utils/permissions';
 
 export const itemsRouter = Router();
 
+const ASSET_TAG_PADDING = 6;
+
+function formatAssetTag(value: number): string {
+  return `#${String(value).padStart(ASSET_TAG_PADDING, '0')}`;
+}
+
+async function getNextAssetTagNumber(conn: PoolConnection): Promise<number> {
+  const [rows] = await conn.query(
+    `
+    SELECT asset_tag AS assetTag, sku
+    FROM inventory_items
+    WHERE (asset_tag IS NOT NULL AND TRIM(asset_tag) <> '')
+       OR (sku IS NOT NULL AND TRIM(sku) <> '')
+    FOR UPDATE
+    `
+  );
+
+  const maxFound = (rows as Array<{ assetTag?: unknown; sku?: unknown }>)
+    .flatMap((row) => {
+      const values: string[] = [];
+      if (typeof row.assetTag === 'string') values.push(row.assetTag.trim());
+      if (typeof row.sku === 'string') values.push(row.sku.trim());
+      return values;
+    })
+    .reduce((max, raw) => {
+      const match = raw.match(/(\d+)$/);
+      if (!match) return max;
+      const parsed = Number.parseInt(match[1], 10);
+      if (!Number.isFinite(parsed)) return max;
+      return Math.max(max, parsed);
+    }, 0);
+
+  return maxFound + 1;
+}
+
+async function getNextAssetTag(conn: PoolConnection): Promise<string> {
+  const nextNumber = await getNextAssetTagNumber(conn);
+  return formatAssetTag(nextNumber);
+}
+
 async function addHistoryEvent(conn: PoolConnection, params: {
   itemId: string;
   actorUserId?: string | null;
@@ -37,6 +77,9 @@ async function addHistoryEvent(conn: PoolConnection, params: {
 // GET /items
 itemsRouter.get('/', authenticateUser, async (_req, res, next) => {
   try {
+    if (!canRead(_req.user?.role)) {
+      return res.status(403).json({ error: 'Sem permissão para listar itens' });
+    }
     const [rows] = await pool.query(
       `
       SELECT 
@@ -67,6 +110,9 @@ itemsRouter.get('/', authenticateUser, async (_req, res, next) => {
 // GET /items/:id
 itemsRouter.get('/:id', authenticateUser, async (req, res, next) => {
   try {
+    if (!canRead(req.user?.role)) {
+      return res.status(403).json({ error: 'Sem permissão para visualizar item' });
+    }
     const id = String(req.params.id);
     const [rows] = await pool.query(
       `
@@ -98,6 +144,20 @@ itemsRouter.get('/:id', authenticateUser, async (req, res, next) => {
   }
 });
 
+// GET /items/meta/next-asset-tag
+itemsRouter.get('/meta/next-asset-tag', authenticateUser, async (req, res, next) => {
+  try {
+    if (!canCreate(req.user?.role)) {
+      return res.status(403).json({ error: 'Sem permissão para criar itens' });
+    }
+
+    const nextAssetTag = await withTransaction(async (conn) => getNextAssetTag(conn));
+    res.json({ value: nextAssetTag });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // POST /items
 itemsRouter.post('/', authenticateUser, async (req, res, next) => {
   try {
@@ -113,8 +173,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
     const name = body.name ?? null;
     const model = body.model;
     const serialNumber = body.serialNumber;
-    const assetTag = body.assetTag ?? null;
-    const sku = body.sku ?? null;
+    // Tag de patrimônio é gerada automaticamente no backend.
     const icon = body.icon ?? null;
     const status = body.status ?? 'available';
     const assignedTo = body.assignedTo ?? null;
@@ -132,6 +191,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
     }
 
     const created = await withTransaction(async (conn) => {
+      const generatedAssetTag = await getNextAssetTag(conn);
       await conn.query(
         `
         INSERT INTO inventory_items
@@ -146,8 +206,8 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           name,
           model,
           serialNumber,
-          assetTag,
-          sku,
+          generatedAssetTag,
+          generatedAssetTag,
           icon,
           status,
           assignedTo,
@@ -194,7 +254,23 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
     });
 
     res.status(201).json(created);
-  } catch (e) {
+  } catch (e: any) {
+    console.error('[POST /items] Error:', e?.message || e);
+    console.error('[POST /items] Code:', e?.code);
+    console.error('[POST /items] SQL:', e?.sqlMessage);
+
+    // Handle duplicate entry error
+    if (e?.code === 'ER_DUP_ENTRY') {
+      const msg = e?.sqlMessage || '';
+      if (msg.includes('serial')) {
+        return res.status(409).json({ error: 'Número de série já cadastrado no sistema' });
+      }
+      if (msg.includes('asset_tag')) {
+        return res.status(409).json({ error: 'Tag de patrimônio já cadastrada no sistema' });
+      }
+      return res.status(409).json({ error: 'Item duplicado - verifique os dados informados' });
+    }
+
     next(e);
   }
 });
@@ -295,6 +371,9 @@ itemsRouter.delete('/:id', authenticateUser, async (req, res, next) => {
 // GET /items/:id/history
 itemsRouter.get('/:id/history', authenticateUser, async (req, res, next) => {
   try {
+    if (!canRead(req.user?.role)) {
+      return res.status(403).json({ error: 'Sem permissão para visualizar histórico' });
+    }
     const id = String(req.params.id);
     const [rows] = await pool.query(
       `

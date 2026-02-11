@@ -31,11 +31,20 @@ function getIpAddress(): string {
   return 'localhost';
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+const vercelUrl = process.env.VERCEL_URL;
+const vercelOrigins = vercelUrl
+  ? [`https://${vercelUrl}`, `https://www.${vercelUrl}`]
+  : [];
+
 export const config = {
   port: parseInt(process.env.PORT || '8080', 10),
   corsOrigin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-    : [
+    : isProduction
+      ? ['https://tvdcontrol.tvdoutor.com.br', ...vercelOrigins]
+      : [
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:5173',
@@ -47,19 +56,23 @@ export const config = {
         `http://${getIpAddress()}:5173`,
       ],
   db: {
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || (isProduction ? 'tvdcontrol-mysql' : 'localhost'),
     port: parseInt(process.env.DB_PORT || '3306', 10),
-    user: process.env.DB_USER || 'root',
+    user: process.env.DB_USER || (isProduction ? 'tvdcontrol' : 'root'),
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'tvdcontrol',
   },
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-secret',
+    secret: process.env.JWT_SECRET || (isProduction ? '' : 'dev-secret'),
     expiresInSeconds: parseInt(process.env.JWT_EXPIRES_IN || '86400', 10),
     refreshExpiresInSeconds: parseInt(process.env.JWT_REFRESH_EXPIRES_IN || '2592000', 10),
     refreshCookieName: process.env.JWT_REFRESH_COOKIE || 'tvdcontrol.refresh',
   },
 };
+
+if (isProduction && !config.jwt.secret) {
+  throw new Error('[tvdcontrol-backend] JWT_SECRET is required in production');
+}
 
 // Log DB config (without password) for debugging
 console.log(

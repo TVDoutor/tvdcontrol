@@ -51,6 +51,12 @@ export async function authenticateUser(
       return;
     }
 
+    // Usuário de controle não acessa o sistema
+    if (user.role !== 'Administrador' && user.role !== 'Gerente') {
+      res.status(403).json({ error: 'Usuário sem acesso ao sistema' });
+      return;
+    }
+
     req.user = {
       id: user.id,
       email: user.email,
@@ -61,6 +67,12 @@ export async function authenticateUser(
     next();
   } catch (error) {
     console.error('[auth middleware] error:', error);
+    console.error('[auth middleware] error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      errorCode: (error as any)?.code,
+      sqlMessage: (error as any)?.sqlMessage,
+    });
     res.status(500).json({ error: 'Erro ao autenticar usuário' });
   }
 }

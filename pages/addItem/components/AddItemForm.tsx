@@ -32,6 +32,28 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
     onChange({ target: { name, value } } as any);
   };
 
+  const normalizedCategory = (formData.category || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  const typeOptions =
+    normalizedCategory === 'perifericos' || normalizedCategory === 'periferico'
+      ? [
+          { value: 'mouse', label: 'Mouse', icon: 'mouse' },
+          { value: 'keyboard', label: 'Teclado', icon: 'keyboard' },
+          { value: 'headset', label: 'Headset', icon: 'headphones' },
+          { value: 'other', label: 'Outros', icon: 'category' },
+        ]
+      : [
+          { value: 'smartphone', label: 'Smartphone', icon: 'smartphone' },
+          { value: 'notebook', label: 'Notebook', icon: 'laptop_mac' },
+          { value: 'monitor', label: 'Monitor', icon: 'tv' },
+          { value: 'peripheral', label: 'Periférico', icon: 'devices_other' },
+          { value: 'chip', label: 'Chip / SIM Card', icon: 'sim_card' },
+        ];
+
   return (
     <form
       className="bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark overflow-hidden mb-12 animate-slide-up opacity-0"
@@ -60,13 +82,7 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
             required
             value={formData.type}
             placeholder="Selecione o tipo"
-            options={[
-              { value: 'smartphone', label: 'Smartphone', icon: 'smartphone' },
-              { value: 'notebook', label: 'Notebook', icon: 'laptop_mac' },
-              { value: 'monitor', label: 'Monitor', icon: 'tv' },
-              { value: 'peripheral', label: 'Periférico', icon: 'devices_other' },
-              { value: 'chip', label: 'Chip / SIM Card', icon: 'sim_card' },
-            ]}
+            options={typeOptions}
             error={errors.type}
             wrapperClassName="flex flex-col flex-1 animate-slide-up opacity-0"
             wrapperStyle={{ animationDelay: '350ms' }}
@@ -90,15 +106,16 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
               <input
                 name="assetTag"
                 value={formData.assetTag}
-                onChange={onChange}
                 className={`${getInputClass('assetTag')} pl-12 font-mono`}
                 placeholder="#000000"
                 type="text"
+                readOnly
               />
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-text-sub-light">
                 <span className="material-symbols-outlined text-[20px]">label</span>
               </div>
             </div>
+            <p className="text-xs text-text-sub-light dark:text-slate-400 mt-1">Gerada automaticamente pelo sistema.</p>
           </label>
           <label className="flex flex-col flex-1 md:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: '500ms' }}>
             <p className="text-text-main-light dark:text-slate-200 text-sm font-medium leading-normal pb-2">

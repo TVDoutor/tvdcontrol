@@ -7,6 +7,8 @@ import { useAuthStore } from './store/AuthStore';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Users = lazy(() => import('./pages/Users'));
+const AddUser = lazy(() => import('./pages/AddUser'));
+const Categories = lazy(() => import('./pages/Categories'));
 const Profile = lazy(() => import('./pages/Profile'));
 const ItemDetails = lazy(() => import('./pages/ItemDetails'));
 const AddItem = lazy(() => import('./pages/AddItem'));
@@ -98,6 +100,8 @@ const App: React.FC = () => {
                   <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
                   <Route path="/inventory" element={<Protected><Inventory /></Protected>} />
                   <Route path="/users" element={<RequireRole roles={['Administrador']}><Users /></RequireRole>} />
+                  <Route path="/users/add" element={<RequireRole roles={['Administrador']}><AddUser /></RequireRole>} />
+                  <Route path="/categories" element={<RequireRole roles={['Administrador']}><Categories /></RequireRole>} />
                   <Route path="/profile" element={<Protected><Profile /></Protected>} />
                   <Route path="/item/:id" element={<Protected><ItemDetails /></Protected>} />
                   <Route path="/items/add" element={<Protected><AddItem /></Protected>} />

@@ -8,6 +8,7 @@ export type UpdateInventoryItemInput = Partial<Omit<InventoryItem, 'id'>> & { id
 export interface InventoryService {
   list(): Promise<InventoryItem[]>;
   get(id: string): Promise<InventoryItem>;
+  nextAssetTag(): Promise<string>;
   create(input: CreateInventoryItemInput): Promise<InventoryItem>;
   update(input: UpdateInventoryItemInput): Promise<InventoryItem>;
   remove(id: string): Promise<void>;
@@ -67,6 +68,18 @@ function createMockInventoryService(): InventoryService {
       item.assignedTo = undefined;
       item.status = 'available';
     },
+    async nextAssetTag() {
+      const numericTags = items
+        .map((item) => (item.sku || '').trim())
+        .map((raw) => {
+          const match = raw.match(/(\d+)$/);
+          return match ? Number.parseInt(match[1], 10) : NaN;
+        })
+        .filter((value) => Number.isFinite(value));
+
+      const next = (numericTags.length ? Math.max(...numericTags) : 0) + 1;
+      return `#${String(next).padStart(6, '0')}`;
+    },
   };
 }
 
@@ -77,6 +90,10 @@ function createHttpInventoryService(http: HttpClient): InventoryService {
     },
     get(id: string) {
       return http.get<InventoryItem>(`/items/${encodeURIComponent(id)}`);
+    },
+    async nextAssetTag() {
+      const response = await http.get<{ value: string }>('/items/meta/next-asset-tag');
+      return response.value;
     },
     create(input) {
       return http.post<InventoryItem>('/items', input);

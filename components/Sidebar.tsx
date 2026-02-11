@@ -100,18 +100,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
               </Link>
               
               {user?.role === 'Administrador' && (
-                <Link 
-                  to="/users"
-                  onClick={handleLinkClick}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-                    isActive('/users') 
-                      ? 'bg-primary/10 text-primary font-semibold' 
-                      : 'text-text-sub-light dark:text-text-sub-dark hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-[20px] ${isActive('/users') ? 'filled' : ''}`}>group</span>
-                  <span className="text-sm">Usuários</span>
-                </Link>
+                <>
+                  <Link 
+                    to="/categories"
+                    onClick={handleLinkClick}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                      isActive('/categories') 
+                        ? 'bg-primary/10 text-primary font-semibold' 
+                        : 'text-text-sub-light dark:text-text-sub-dark hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[20px] ${isActive('/categories') ? 'filled' : ''}`}>category</span>
+                    <span className="text-sm">Categorias</span>
+                  </Link>
+                  <Link 
+                    to="/users"
+                    onClick={handleLinkClick}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                      isActive('/users') 
+                        ? 'bg-primary/10 text-primary font-semibold' 
+                        : 'text-text-sub-light dark:text-text-sub-dark hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
+                    }`}
+                  >
+                    <span className={`material-symbols-outlined text-[20px] ${isActive('/users') ? 'filled' : ''}`}>group</span>
+                    <span className="text-sm">Usuários</span>
+                  </Link>
+                </>
               )}
 
               <Link 

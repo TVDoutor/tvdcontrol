@@ -21,6 +21,7 @@ export type CategoryOption = {
 };
 
 export const CATEGORY_OPTIONS: CategoryOption[] = [
+  { value: 'Notebook', label: 'Notebook', icon: 'laptop_mac' },
   { value: 'Computadores', label: 'Computadores', icon: 'computer' },
   { value: 'Celulares', label: 'Celulares', icon: 'smartphone' },
   { value: 'Monitores', label: 'Monitores', icon: 'monitor' },
@@ -44,6 +45,28 @@ export const INITIAL_FORM_DATA: AddItemFormData = {
 };
 
 export function getCategoryIcon(category: string): string {
-  return CATEGORY_OPTIONS.find((c) => c.value === category)?.icon || 'inventory_2';
-}
+  const normalized = (category || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 
+  const iconByCategory: Record<string, string> = {
+    notebook: 'laptop_mac',
+    notebooks: 'laptop_mac',
+    computadores: 'computer',
+    computador: 'computer',
+    celulares: 'smartphone',
+    celular: 'smartphone',
+    monitores: 'monitor',
+    monitor: 'monitor',
+    perifericos: 'keyboard',
+    periferico: 'keyboard',
+    chips: 'sim_card',
+    chip: 'sim_card',
+    acessorios: 'headphones',
+    acessorio: 'headphones',
+  };
+
+  return iconByCategory[normalized] || 'inventory_2';
+}

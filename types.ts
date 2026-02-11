@@ -4,6 +4,7 @@ export interface User {
     id: string;
     name: string;
     email: string;
+    phone?: string;
     role: UserRole;
     department: string;
     avatar: string;
@@ -21,6 +22,7 @@ export interface InventoryItem {
 
     serialNumber: string;
     model: string;
+    type?: string;
     manufacturer: string;
     category: string;
     status: 'available' | 'in_use' | 'maintenance' | 'retired';

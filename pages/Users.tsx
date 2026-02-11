@@ -1,26 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { User, UserRole } from '../types';
 import { useUsersStore } from '../store/UsersStore';
+import { useInventoryStore } from '../store/InventoryStore';
 import { useAuthStore } from '../store/AuthStore';
 import { canUpdate, canDelete } from '../utils/permissions';
 import { DEPARTMENTS } from './users/constants';
+import { getFriendlyErrorMessage } from '../services/httpClient';
 import UserDeleteModal from './users/components/UserDeleteModal';
 import UsersTable from './users/components/UsersTable';
 import UserDrawer from './users/components/UserDrawer';
+import AssignItemsModal from './users/components/AssignItemsModal';
+
+type EditUserFormData = Partial<User> & {
+  password?: string;
+  confirmPassword?: string;
+};
 
 const Users: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { users, isLoading, error, createUser, updateUser, deleteUser } = useUsersStore();
+  const { items, assignItem } = useInventoryStore();
   const { user: currentUser } = useAuthStore();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<User>>({});
+  const [editFormData, setEditFormData] = useState<EditUserFormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   useEffect(() => {
     const state = location.state as { targetUserId?: string; editMode?: boolean } | null;
@@ -96,22 +107,7 @@ const Users: React.FC = () => {
   };
 
   const handleNewUser = () => {
-      const newUserTemplate: User = {
-          id: 'NEW', // Placeholder while creating (real ID assigned on save)
-          name: '',
-          email: '',
-          role: 'Usuario',
-          department: 'TI',
-          avatar: 'https://cdn-icons-png.flaticon.com/512/847/847969.png', // Default Placeholder
-          itemsCount: 0,
-          status: 'active'
-      };
-      
-      setSelectedUser(newUserTemplate);
-      setEditFormData(newUserTemplate);
-      setIsCreating(true);
-      setIsEditing(true);
-      setErrors({});
+      navigate('/users/add');
   };
 
   const handleStartEditing = () => {
@@ -132,7 +128,7 @@ const Users: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
-      setEditFormData((prev) => ({ ...prev, [name]: value }) as Partial<User>);
+      setEditFormData((prev) => ({ ...prev, [name]: value }) as EditUserFormData);
 
       if (errors[name]) {
           setErrors((prev) => {
@@ -144,7 +140,7 @@ const Users: React.FC = () => {
   };
 
   const handleAvatarChange = (avatar: string) => {
-    setEditFormData((prev) => ({ ...prev, avatar }) as Partial<User>);
+    setEditFormData((prev) => ({ ...prev, avatar }) as EditUserFormData);
     if (errors.avatar) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -174,6 +170,34 @@ const Users: React.FC = () => {
           newErrors.email = "Formato de email inválido";
       }
 
+      const password = (editFormData.password ?? '').trim();
+      const confirmPassword = (editFormData.confirmPassword ?? '').trim();
+      const isTryingToChangePassword = Boolean(password.length > 0 || confirmPassword.length > 0);
+
+      if (isCreating) {
+        if (!password) {
+          newErrors.password = 'Senha é obrigatória';
+        } else if (password.length < 6) {
+          newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+        }
+        if (!confirmPassword) {
+          newErrors.confirmPassword = 'Confirme a senha';
+        } else if (confirmPassword !== password) {
+          newErrors.confirmPassword = 'As senhas não conferem';
+        }
+      } else if (isTryingToChangePassword) {
+        if (!password) {
+          newErrors.password = 'Nova senha é obrigatória';
+        } else if (password.length < 6) {
+          newErrors.password = 'Nova senha deve ter pelo menos 6 caracteres';
+        }
+        if (!confirmPassword) {
+          newErrors.confirmPassword = 'Confirme a nova senha';
+        } else if (confirmPassword !== password) {
+          newErrors.confirmPassword = 'As senhas não conferem';
+        }
+      }
+
       if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors);
           return;
@@ -181,26 +205,50 @@ const Users: React.FC = () => {
 
       if (isCreating) {
           void (async () => {
-            const role: UserRole = (editFormData.role as UserRole | undefined) ?? 'Usuario';
-            const created = await createUser({
-              name: editFormData.name || '',
-              email: editFormData.email || '',
-              role,
-              department: (editFormData.department || 'TI') as string,
-              avatar: editFormData.avatar || 'https://cdn-icons-png.flaticon.com/512/847/847969.png',
-              status: (editFormData.status || 'active') as 'active' | 'inactive',
-              itemsCount: (editFormData.itemsCount ?? 0) as number,
-            });
-            setSelectedUser(created);
-            setIsCreating(false);
-            setIsEditing(false);
+            try {
+              const role: UserRole = (editFormData.role as UserRole | undefined) ?? 'Usuario';
+              const created = await createUser({
+                name: editFormData.name || '',
+                email: editFormData.email || '',
+                phone: editFormData.phone,
+                password,
+                role,
+                department: (editFormData.department || 'TI') as string,
+                avatar: editFormData.avatar || 'https://cdn-icons-png.flaticon.com/512/847/847969.png',
+                status: (editFormData.status || 'active') as 'active' | 'inactive',
+                itemsCount: (editFormData.itemsCount ?? 0) as number,
+              });
+              setSelectedUser(created);
+              setIsCreating(false);
+              setIsEditing(false);
+              setEditFormData({});
+            } catch (e) {
+              alert(getFriendlyErrorMessage(e, 'general'));
+            }
           })();
           return;
       } else {
           void (async () => {
-            const updated = await updateUser({ id: selectedUser.id, ...editFormData });
-            setSelectedUser(updated);
-            setIsEditing(false);
+            try {
+              const payload: any = { id: selectedUser.id };
+              if (typeof editFormData.name === 'string') payload.name = editFormData.name;
+              if (typeof editFormData.email === 'string') payload.email = editFormData.email;
+              if (typeof editFormData.phone === 'string') payload.phone = editFormData.phone;
+              if (typeof editFormData.department === 'string') payload.department = editFormData.department;
+              if (typeof editFormData.avatar === 'string') payload.avatar = editFormData.avatar;
+              if (editFormData.status === 'active' || editFormData.status === 'inactive') payload.status = editFormData.status;
+              if (editFormData.role === 'Administrador' || editFormData.role === 'Gerente' || editFormData.role === 'Usuario') {
+                payload.role = editFormData.role;
+              }
+              if (isTryingToChangePassword) payload.password = password;
+
+              const updated = await updateUser(payload);
+              setSelectedUser(updated);
+              setIsEditing(false);
+              setEditFormData({});
+            } catch (e) {
+              alert(getFriendlyErrorMessage(e, 'general'));
+            }
           })();
           return;
       }
@@ -218,6 +266,9 @@ const Users: React.FC = () => {
 
   const allowUpdate = canUpdate(currentUser);
   const allowDelete = canDelete(currentUser);
+  const assignedItems = selectedUser
+    ? items.filter((i) => i.assignedTo === selectedUser.id)
+    : [];
 
   return (
     <div className="flex flex-1 flex-col min-w-0 bg-background-light dark:bg-background-dark overflow-y-auto h-full relative">
@@ -232,6 +283,22 @@ const Users: React.FC = () => {
           userName={userToDelete?.name}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {showAssignModal && selectedUser && (
+        <AssignItemsModal
+          user={selectedUser}
+          items={items}
+          onClose={() => setShowAssignModal(false)}
+          onConfirm={(itemIds) => {
+            void (async () => {
+              for (const id of itemIds) {
+                await assignItem(id, selectedUser.id);
+              }
+              setShowAssignModal(false);
+            })();
+          }}
         />
       )}
 
@@ -259,6 +326,8 @@ const Users: React.FC = () => {
           isCreating={isCreating}
           editFormData={editFormData}
           errors={errors}
+          assignedItems={assignedItems}
+          onAddItems={() => setShowAssignModal(true)}
           onClose={() => setSelectedUser(null)}
           onStartEditing={handleStartEditing}
           onCancelEdit={handleCancelEdit}
