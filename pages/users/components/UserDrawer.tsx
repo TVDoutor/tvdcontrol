@@ -27,6 +27,12 @@ interface UserDrawerProps {
   onAvatarChange: (avatar: string) => void;
 }
 
+function formatCpf(cpf: string): string {
+  const d = cpf.replace(/\D/g, '');
+  if (d.length !== 11) return cpf;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
 const UserDrawer: React.FC<UserDrawerProps> = ({
   departments,
   selectedUser,
@@ -337,6 +343,16 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                         />
                       </div>
                       <div className="flex flex-col gap-1">
+                        <label className="text-xs text-text-sub-light font-semibold">CPF (opcional)</label>
+                        <input
+                          name="cpf"
+                          value={editFormData.cpf || ''}
+                          onChange={onInputChange}
+                          className="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="000.000.000-00"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
                         <label className="text-xs text-text-sub-light font-semibold">Departamento</label>
                         <Dropdown
                           name="department"
@@ -392,6 +408,8 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       <ContactItem icon="mail" label="Email" value={selectedUser.email} />
                       <div className="border-t border-border-light dark:border-border-dark my-1"></div>
                       <ContactItem icon="call" label="Telefone" value={selectedUser.phone || '-'} />
+                      <div className="border-t border-border-light dark:border-border-dark my-1"></div>
+                      <ContactItem icon="badge" label="CPF" value={selectedUser.cpf ? formatCpf(selectedUser.cpf) : '-'} />
                       <div className="border-t border-border-light dark:border-border-dark my-1"></div>
                       <ContactItem icon="domain" label="Departamento" value={selectedUser.department} />
                     </div>

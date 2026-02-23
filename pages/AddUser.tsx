@@ -11,6 +11,7 @@ type FormState = {
   name: string;
   email: string;
   phone: string;
+  cpf: string;
   department: string;
   role: string;
   password: string;
@@ -28,6 +29,7 @@ const AddUser: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    cpf: '',
     department: 'TI',
     role: 'Usuario',
     password: '',
@@ -96,6 +98,7 @@ const AddUser: React.FC = () => {
           name: form.name.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
+          cpf: form.cpf.trim() ? form.cpf.replace(/\D/g, '') : undefined,
           password: requiresPassword ? form.password : undefined,
           role: form.role as any,
           department: form.department,
@@ -185,6 +188,16 @@ const AddUser: React.FC = () => {
                   placeholder="(11) 99999-9999"
                 />
                 {errors.phone && <span className="text-xs text-red-500">{errors.phone}</span>}
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-text-main-light dark:text-slate-200">CPF (opcional)</span>
+                <input
+                  value={form.cpf}
+                  onChange={(e) => setField('cpf', e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
+                  placeholder="000.000.000-00"
+                />
               </label>
 
               <label className="flex flex-col gap-2">

@@ -4,6 +4,7 @@ import { pool, query, queryOne, withTransaction } from '../db';
 import { uuid } from '../utils/uuid';
 import { authenticateUser } from '../utils/auth';
 import { canCreate, canRead, canUpdate, canDelete } from '../utils/permissions';
+import { generateRecebimentoPdf, generateDevolucaoPdf } from '../utils/pdfGenerator';
 
 export const itemsRouter = Router();
 
@@ -94,6 +95,7 @@ async function addHistoryEvent(conn: PoolConnection, params: {
       throw err;
     }
   }
+  return id;
 }
 
 // GET /items
@@ -123,6 +125,24 @@ itemsRouter.get('/', authenticateUser, async (_req, res, next) => {
       FROM inventory_items
       ORDER BY created_at DESC
       `
+    );
+    res.json(rows);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /items/:id/documents
+itemsRouter.get('/:id/documents', authenticateUser, async (req, res, next) => {
+  try {
+    if (!canRead(req.user?.role)) {
+      return res.status(403).json({ error: 'Sem permissão para visualizar documentos' });
+    }
+    const itemId = String(req.params.id);
+    const rows = await query(
+      `SELECT id, item_id AS itemId, user_id AS userId, type, signed_at AS signedAt, history_event_id AS historyEventId, created_at AS createdAt
+       FROM inventory_documents WHERE item_id = ? ORDER BY created_at DESC`,
+      [itemId]
     );
     res.json(rows);
   } catch (e) {
@@ -455,7 +475,27 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
     }
     const id = String(req.params.id);
     const userId = req.body?.userId ? String(req.body.userId) : null;
+    const signatureBase64 = req.body?.signatureBase64 ? String(req.body.signatureBase64) : null;
     if (!userId) return res.status(400).json({ message: 'userId é obrigatório' });
+
+    const [itemRows] = await pool.query(
+      `SELECT category, type, manufacturer, name, model, serial_number AS serialNumber, asset_tag AS assetTag, notes
+       FROM inventory_items WHERE id = ?`,
+      [id]
+    );
+    const item = (itemRows as any[])[0];
+    if (!item) return res.status(404).json({ message: 'Item não encontrado' });
+
+    const [userRows] = await pool.query(
+      `SELECT name, department, cpf FROM users WHERE id = ?`,
+      [userId]
+    );
+    const user = (userRows as any[])[0];
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
+
+    const company = await queryOne(
+      `SELECT name, legal_name AS legalName, address, city, state, zip, cnpj FROM company_settings WHERE id = 'default'`
+    );
 
     await withTransaction(async (conn) => {
       await conn.query(
@@ -463,13 +503,12 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
         [userId, id]
       );
 
-      const [userRows] = await conn.query('SELECT name FROM users WHERE id = ?', [userId]);
-      const userName = (userRows as any[])[0]?.name ?? null;
+      const userName = user.name ?? null;
       const assignDesc = userName
         ? `Item atribuído ao usuário ${userName}.`
         : `Item atribuído ao usuário (ID: ${userId}).`;
 
-      await addHistoryEvent(conn, {
+      const historyId = await addHistoryEvent(conn, {
         itemId: id,
         actorUserId: req.user?.id || null,
         eventType: 'assigned',
@@ -477,6 +516,47 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
         title: 'Atribuído a usuário',
         description: assignDesc,
       });
+
+      const now = new Date().toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+
+      const pdfBuffer = await generateRecebimentoPdf({
+        signatureBase64: signatureBase64 || null,
+        company: {
+          name: company?.name || 'Empresa',
+          legalName: company?.legalName ?? null,
+          address: company?.address ?? null,
+          city: company?.city ?? null,
+          state: company?.state ?? null,
+          zip: company?.zip ?? null,
+          cnpj: company?.cnpj ?? null,
+        },
+        user: {
+          name: user.name,
+          department: user.department || 'Geral',
+          cpf: user.cpf ?? null,
+        },
+        item: {
+          category: item.category,
+          type: item.type,
+          manufacturer: item.manufacturer || '–',
+          model: item.model,
+          serialNumber: item.serialNumber,
+          assetTag: item.assetTag ?? null,
+          notes: item.notes ?? null,
+        },
+        date: now,
+      });
+      const pdfBase64 = pdfBuffer.toString('base64');
+      const docId = uuid();
+      await conn.query(
+        `INSERT INTO inventory_documents (id, item_id, user_id, type, file_path, pdf_base64, signed_at, actor_user_id, history_event_id)
+         VALUES (?, ?, ?, 'recebimento', '', ?, NOW(), ?, ?)`,
+        [docId, id, userId, pdfBase64, req.user?.id || null, historyId]
+      );
     });
 
     res.status(204).send();
@@ -491,7 +571,30 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
     const id = String(req.params.id);
     const returnPhoto = req.body?.returnPhoto ?? null;
     const returnNotes = req.body?.returnNotes ?? null;
-    const returnItems = req.body?.returnItems ?? null;
+    const returnItemsRaw = req.body?.returnItems;
+    const returnItems = Array.isArray(returnItemsRaw) ? returnItemsRaw : null;
+    const signatureBase64 = req.body?.signatureBase64 ? String(req.body.signatureBase64) : null;
+
+    const [itemRows] = await pool.query(
+      `SELECT i.category, i.type, i.manufacturer, i.name, i.model, i.serial_number AS serialNumber, i.asset_tag AS assetTag, i.notes, i.assigned_to_user_id AS assignedTo
+       FROM inventory_items i WHERE i.id = ?`,
+      [id]
+    );
+    const item = (itemRows as any[])[0];
+    if (!item) return res.status(404).json({ message: 'Item não encontrado' });
+    const userId = item.assignedTo;
+    if (!userId) return res.status(400).json({ message: 'Item não está atribuído' });
+
+    const [userRows] = await pool.query(
+      `SELECT name, department, cpf FROM users WHERE id = ?`,
+      [userId]
+    );
+    const user = (userRows as any[])[0];
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
+
+    const company = await queryOne(
+      `SELECT name, legal_name AS legalName, address, city, state, zip, cnpj FROM company_settings WHERE id = 'default'`
+    );
 
     await withTransaction(async (conn) => {
       await conn.query(
@@ -499,7 +602,7 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
         [id]
       );
 
-      await addHistoryEvent(conn, {
+      const historyId = await addHistoryEvent(conn, {
         itemId: id,
         actorUserId: req.user?.id || null,
         eventType: 'returned',
@@ -508,8 +611,54 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
         description: 'Item retornado ao estoque. Status alterado para Disponível.',
         returnPhoto,
         returnNotes,
-        returnItems,
+        returnItems: returnItems ? JSON.stringify(returnItems) : null,
       });
+
+      const now = new Date().toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      const returnItemsList = returnItems && returnItems.length > 0
+        ? (typeof returnItems[0] === 'string' ? returnItems : returnItems.map((r: any) => r?.label || r?.name || String(r)))
+        : null;
+
+      const pdfBuffer = await generateDevolucaoPdf({
+        signatureBase64: signatureBase64 || null,
+        company: {
+          name: company?.name || 'Empresa',
+          legalName: company?.legalName ?? null,
+          address: company?.address ?? null,
+          city: company?.city ?? null,
+          state: company?.state ?? null,
+          zip: company?.zip ?? null,
+          cnpj: company?.cnpj ?? null,
+        },
+        user: {
+          name: user.name,
+          department: user.department || 'Geral',
+          cpf: user.cpf ?? null,
+        },
+        item: {
+          category: item.category,
+          type: item.type,
+          manufacturer: item.manufacturer || '–',
+          model: item.model,
+          serialNumber: item.serialNumber,
+          assetTag: item.assetTag ?? null,
+          notes: item.notes ?? null,
+        },
+        date: now,
+        returnItems: returnItemsList,
+        returnNotes: returnNotes || null,
+      });
+      const pdfBase64 = pdfBuffer.toString('base64');
+      const docId = uuid();
+      await conn.query(
+        `INSERT INTO inventory_documents (id, item_id, user_id, type, file_path, pdf_base64, signed_at, actor_user_id, history_event_id)
+         VALUES (?, ?, ?, 'devolucao', '', ?, NOW(), ?, ?)`,
+        [docId, id, userId, pdfBase64, req.user?.id || null, historyId]
+      );
     });
 
     res.status(204).send();

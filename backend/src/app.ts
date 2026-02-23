@@ -7,6 +7,8 @@ import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
 import { itemsRouter } from './routes/items';
 import { categoriesRouter } from './routes/categories';
+import { companySettingsRouter } from './routes/companySettings';
+import { documentsRouter } from './routes/documents';
 import { pool } from './db';
 import { generateUUID } from './utils/uuid';
 
@@ -92,6 +94,85 @@ async function ensureItemPhotoColumns(): Promise<void> {
   await ensureColumn('inventory_history', 'return_items', `ALTER TABLE inventory_history ADD COLUMN return_items TEXT NULL`);
 }
 
+async function ensureUserCpfColumn(): Promise<void> {
+  const [tables] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' LIMIT 1`
+  );
+  if (!Array.isArray(tables) || tables.length === 0) return;
+
+  const [cols] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'cpf' LIMIT 1`
+  );
+  if (Array.isArray(cols) && cols.length > 0) return;
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN cpf VARCHAR(14) NULL`);
+  } catch (e: any) {
+    if (e?.code === 'ER_DUP_FIELDNAME') return;
+    throw e;
+  }
+}
+
+async function ensureCompanySettingsTable(): Promise<void> {
+  const [tables] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'company_settings' LIMIT 1`
+  );
+  if (Array.isArray(tables) && tables.length > 0) return;
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS company_settings (
+      id CHAR(36) PRIMARY KEY,
+      name VARCHAR(160) NOT NULL,
+      legal_name VARCHAR(255) NULL,
+      address VARCHAR(255) NULL,
+      city VARCHAR(120) NULL,
+      state VARCHAR(60) NULL,
+      zip VARCHAR(20) NULL,
+      cnpj VARCHAR(20) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+}
+
+async function ensureInventoryDocumentsTable(): Promise<void> {
+  const [tables] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory_documents' LIMIT 1`
+  );
+  if (Array.isArray(tables) && tables.length > 0) {
+    const [cols] = await pool.query(
+      `SELECT 1 AS ok FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory_documents' AND COLUMN_NAME = 'pdf_base64' LIMIT 1`
+    );
+    if (!(Array.isArray(cols) && cols.length > 0)) {
+      try {
+        await pool.query(`ALTER TABLE inventory_documents ADD COLUMN pdf_base64 LONGTEXT NULL`);
+      } catch (e: any) {
+        if (e?.code !== 'ER_DUP_FIELDNAME') throw e;
+      }
+    }
+    return;
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS inventory_documents (
+      id CHAR(36) PRIMARY KEY,
+      item_id CHAR(36) NOT NULL,
+      user_id CHAR(36) NOT NULL,
+      type ENUM('recebimento','devolucao') NOT NULL,
+      file_path VARCHAR(512) NOT NULL DEFAULT '',
+      pdf_base64 LONGTEXT NULL,
+      signed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      actor_user_id CHAR(36) NULL,
+      history_event_id CHAR(36) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_doc_item FOREIGN KEY (item_id) REFERENCES inventory_items(id) ON DELETE CASCADE,
+      CONSTRAINT fk_doc_user FOREIGN KEY (user_id) REFERENCES users(id),
+      CONSTRAINT fk_doc_actor FOREIGN KEY (actor_user_id) REFERENCES users(id),
+      INDEX idx_doc_item (item_id),
+      INDEX idx_doc_user (user_id),
+      INDEX idx_doc_type (type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+}
 
 async function ensureCategoriesTableAndSeed(): Promise<void> {
   await pool.query(`
@@ -163,6 +244,8 @@ function createApp(): express.Express {
   app.use('/users', usersRouter);
   app.use('/items', itemsRouter);
   app.use('/categories', categoriesRouter);
+  app.use('/company-settings', companySettingsRouter);
+  app.use('/documents', documentsRouter);
 
   const frontendDistPath = path.resolve(__dirname, '../../dist');
   const frontendIndexPath = path.join(frontendDistPath, 'index.html');
@@ -173,7 +256,7 @@ function createApp(): express.Express {
 
     app.get('*', (req, res) => {
       const p = req.path || '';
-      const isApiPath = p === '/health' || p.startsWith('/auth') || p.startsWith('/users') || p.startsWith('/items') || p.startsWith('/categories');
+      const isApiPath = p === '/health' || p.startsWith('/auth') || p.startsWith('/users') || p.startsWith('/items') || p.startsWith('/categories') || p.startsWith('/company-settings') || p.startsWith('/documents');
       if (isApiPath) {
         return res.status(404).json({ error: 'Not found' });
       }
@@ -205,7 +288,10 @@ export async function getApp(): Promise<express.Express> {
   appPromise = (async () => {
     try {
       await ensureRefreshTokenColumns();
+      await ensureUserCpfColumn();
       await ensureItemPhotoColumns();
+      await ensureCompanySettingsTable();
+      await ensureInventoryDocumentsTable();
       await ensureCategoriesTableAndSeed();
     } catch (e) {
       console.error('[tvdcontrol-backend] schema init error:', e);

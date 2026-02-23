@@ -5,7 +5,9 @@ import { useUsersStore } from '../store/UsersStore';
 import { useAuthStore } from '../store/AuthStore';
 import { canUpdate } from '../utils/permissions';
 import { getCategoriesService } from '../services/categoriesService';
+import { getDocumentsService, type InventoryDocument } from '../services/documentsService';
 import PhotoUpload from '../components/PhotoUpload';
+import SignaturePad from '../components/SignaturePad';
 
 function parseLocalDate(dateText: string): Date | null {
     if (!dateText) return null;
@@ -74,8 +76,11 @@ const ItemDetails: React.FC = () => {
     const [returnItemsSelected, setReturnItemsSelected] = useState<string[]>([]);
     const [isReturning, setIsReturning] = useState(false);
     const [selectedAssignUserId, setSelectedAssignUserId] = useState('');
+    const [assignSignature, setAssignSignature] = useState('');
+    const [returnSignature, setReturnSignature] = useState('');
     const [dbCategories, setDbCategories] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [itemDocuments, setItemDocuments] = useState<InventoryDocument[]>([]);
 
     // Check if we navigated here with the intention to edit (only for system users)
     useEffect(() => {
@@ -94,6 +99,13 @@ const ItemDetails: React.FC = () => {
             void loadHistory(itemId);
         }
     }, [itemId, loadHistory]);
+
+    useEffect(() => {
+        if (showHistory && itemId) {
+            const docs = getDocumentsService();
+            void docs.listByItem(itemId).then(setItemDocuments).catch(() => setItemDocuments([]));
+        }
+    }, [showHistory, itemId]);
 
     useEffect(() => {
         const service = getCategoriesService();
@@ -271,18 +283,19 @@ const ItemDetails: React.FC = () => {
         const selectedLabels = items
             .filter((i) => returnItemsSelected.includes(i.id))
             .map((i) => i.label);
-        const returnItemsJson = selectedLabels.length > 0 ? JSON.stringify(selectedLabels) : undefined;
         setIsReturning(true);
         void returnItem(item.id, {
             returnPhoto: returnPhoto || undefined,
             returnNotes: returnNotes.trim() || undefined,
-            returnItems: returnItemsJson,
+            returnItems: selectedLabels.length > 0 ? selectedLabels : undefined,
+            signatureBase64: returnSignature || undefined,
         })
             .then(() => {
                 setShowReturnModal(false);
                 setReturnPhoto('');
                 setReturnNotes('');
                 setReturnItemsSelected([]);
+                setReturnSignature('');
             })
             .catch((err) => {
                 const msg = err?.message || 'Não foi possível concluir a devolução. Tente novamente.';
@@ -293,11 +306,11 @@ const ItemDetails: React.FC = () => {
 
     const returnItemsList = getReturnItemsForItem(item);
 
-    const handleAssignItem = (targetUserId?: string) => {
+    const handleAssignItem = (targetUserId?: string, signatureBase64?: string) => {
         if (!item) return;
         const target = targetUserId ? users.find((u) => u.id === targetUserId) : undefined;
         if (!target) return;
-        void assignItem(item.id, target.id);
+        void assignItem(item.id, target.id, signatureBase64 ? { signatureBase64 } : undefined);
     };
 
     const assignableUsers = users.filter((u) => u.status === 'active' && u.role === 'Usuario');
@@ -337,17 +350,50 @@ const ItemDetails: React.FC = () => {
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto">
-                            <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-8">
-                                {(historyEvents || []).length > 0 ? (
-                                    (historyEvents || []).map((event) => (
-                                        <TimelineEvent key={event.id} {...event} />
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-4">
-                                        Nenhum evento registrado para este item.
-                                    </p>
-                                )}
+                        <div className="p-6 overflow-y-auto space-y-6">
+                            {itemDocuments.length > 0 && (
+                                <div>
+                                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[18px]">description</span>
+                                        Termos de Responsabilidade
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {itemDocuments.map((doc) => {
+                                            const label = doc.type === 'recebimento' ? 'Termo de Recebimento' : 'Termo de Devolução';
+                                            const date = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+                                            return (
+                                                <button
+                                                    key={doc.id}
+                                                    onClick={() => {
+                                                        const svc = getDocumentsService();
+                                                        void svc.download(doc.id, `termo-${doc.type}-${date.replace(/\//g, '-')}.pdf`);
+                                                    }}
+                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/50 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-medium transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">download</span>
+                                                    {label} - {date}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px]">history</span>
+                                    Eventos
+                                </h4>
+                                <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-8">
+                                    {(historyEvents || []).length > 0 ? (
+                                        (historyEvents || []).map((event) => (
+                                            <TimelineEvent key={event.id} {...event} />
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-4">
+                                            Nenhum evento registrado para este item.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end">
@@ -421,6 +467,13 @@ const ItemDetails: React.FC = () => {
                                 placeholder="Clique para adicionar foto"
                                 helperText="Opcional. Recomendado para documentar o estado no retorno."
                             />
+                            <SignaturePad
+                                value={returnSignature}
+                                onChange={setReturnSignature}
+                                label="Assinatura do colaborador"
+                                placeholder="O colaborador deve assinar no quadro abaixo para formalizar a devolução"
+                                disabled={isReturning}
+                            />
                         </div>
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
                             <button
@@ -466,7 +519,7 @@ const ItemDetails: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="p-5 overflow-y-auto">
+                        <div className="p-5 overflow-y-auto space-y-4">
                             {assignableUsers.length === 0 ? (
                                 <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum usuário ativo disponível para atribuição.</p>
                             ) : (
@@ -496,6 +549,14 @@ const ItemDetails: React.FC = () => {
                                     ))}
                                 </div>
                             )}
+                            {selectedAssignUserId && (
+                                <SignaturePad
+                                    value={assignSignature}
+                                    onChange={setAssignSignature}
+                                    label="Assinatura do colaborador"
+                                    placeholder="O colaborador deve assinar no quadro abaixo para receber o equipamento"
+                                />
+                            )}
                         </div>
 
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
@@ -508,9 +569,10 @@ const ItemDetails: React.FC = () => {
                             <button
                                 onClick={() => {
                                     if (!selectedAssignUserId) return;
-                                    handleAssignItem(selectedAssignUserId);
+                                    handleAssignItem(selectedAssignUserId, assignSignature);
                                     setShowAssignModal(false);
                                     setSelectedAssignUserId('');
+                                    setAssignSignature('');
                                 }}
                                 disabled={!selectedAssignUserId}
                                 className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm text-sm font-bold"

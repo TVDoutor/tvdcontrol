@@ -11,6 +11,7 @@ export interface User {
     name: string;
     email: string;
     phone?: string;
+    cpf?: string;
     role: UserRole;
     department: string;
     avatar: string;

@@ -9,6 +9,7 @@ const Inventory = lazy(() => import('./pages/Inventory'));
 const Users = lazy(() => import('./pages/Users'));
 const AddUser = lazy(() => import('./pages/AddUser'));
 const Categories = lazy(() => import('./pages/Categories'));
+const CompanySettings = lazy(() => import('./pages/CompanySettings'));
 const Profile = lazy(() => import('./pages/Profile'));
 const ItemDetails = lazy(() => import('./pages/ItemDetails'));
 const AddItem = lazy(() => import('./pages/AddItem'));
@@ -102,6 +103,7 @@ const App: React.FC = () => {
                   <Route path="/users" element={<RequireRole roles={['Administrador']}><Users /></RequireRole>} />
                   <Route path="/users/add" element={<RequireRole roles={['Administrador']}><AddUser /></RequireRole>} />
                   <Route path="/categories" element={<RequireRole roles={['Administrador', 'Gerente']}><Categories /></RequireRole>} />
+                  <Route path="/company-settings" element={<RequireRole roles={['Administrador', 'Gerente']}><CompanySettings /></RequireRole>} />
                   <Route path="/profile" element={<Protected><Profile /></Protected>} />
                   <Route path="/item/:id" element={<Protected><ItemDetails /></Protected>} />
                   <Route path="/items/add" element={<RequireRole roles={['Administrador', 'Gerente']}><AddItem /></RequireRole>} />

@@ -66,7 +66,7 @@ usersRouter.post('/', (req, res, next) => {
   next();
 }, async (req, res, next) => {
   try {
-    const { name, email, password, role, department, avatar, phone } = req.body;
+    const { name, email, password, role, department, avatar, phone, cpf } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -92,6 +92,12 @@ usersRouter.post('/', (req, res, next) => {
       }
       const normalizedPhone = phone.trim();
       finalPhone = normalizedPhone.length > 0 ? normalizedPhone : null;
+    }
+
+    let finalCpf: string | null = null;
+    if (cpf !== undefined && cpf !== null && cpf !== '') {
+      const cpfStr = String(cpf).replace(/\D/g, '');
+      finalCpf = cpfStr.length >= 11 ? cpfStr : null;
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -126,9 +132,9 @@ usersRouter.post('/', (req, res, next) => {
     const userId = generateUUID();
 
     await query(
-      `INSERT INTO users (id, name, email, password_hash, role, department, avatar, phone, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, name.trim(), normalizedEmail, passwordHash, finalRole, department || 'Geral', finalAvatar, finalPhone, 'active']
+      `INSERT INTO users (id, name, email, password_hash, role, department, avatar, phone, cpf, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, name.trim(), normalizedEmail, passwordHash, finalRole, department || 'Geral', finalAvatar, finalPhone, finalCpf, 'active']
     );
 
     const newUser = await queryOne(`SELECT * FROM users WHERE id = ?`, [userId]);
@@ -157,7 +163,7 @@ usersRouter.put('/:id', (req, res, next) => {
 }, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, email, password, role, department, status, avatar, phone } = req.body;
+    const { name, email, password, role, department, status, avatar, phone, cpf } = req.body;
 
     const existing = await queryOne(`SELECT * FROM users WHERE id = ?`, [id]);
     if (!existing) {
@@ -232,6 +238,12 @@ usersRouter.put('/:id', (req, res, next) => {
       const normalizedPhone = phone.trim();
       updates.push('phone = ?');
       values.push(normalizedPhone.length > 0 ? normalizedPhone : null);
+    }
+
+    if (cpf !== undefined) {
+      const cpfStr = cpf === null || cpf === '' ? null : String(cpf).replace(/\D/g, '');
+      updates.push('cpf = ?');
+      values.push(cpfStr && cpfStr.length >= 11 ? cpfStr : null);
     }
 
     if (status !== undefined) {

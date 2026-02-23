@@ -116,6 +116,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
                     <span className="text-sm">Categorias</span>
                 </Link>
               )}
+
+              {isSystemUser(user) && (
+                <Link 
+                  to="/company-settings"
+                  onClick={handleLinkClick}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                    isActive('/company-settings') 
+                      ? 'bg-primary/10 text-primary font-semibold' 
+                      : 'text-text-sub-light dark:text-text-sub-dark hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-[20px] ${isActive('/company-settings') ? 'filled' : ''}`}>business</span>
+                  <span className="text-sm">Empresa</span>
+                </Link>
+              )}
               
               {isAdministrator(user) && (
                 <Link 

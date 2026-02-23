@@ -13,8 +13,8 @@ export interface InventoryService {
   update(input: UpdateInventoryItemInput): Promise<InventoryItem>;
   remove(id: string): Promise<void>;
   history(id: string): Promise<InventoryHistoryEvent[]>;
-  assign(id: string, userId: string): Promise<void>;
-  returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }): Promise<void>;
+  assign(id: string, userId: string, options?: { signatureBase64?: string }): Promise<void>;
+  returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }): Promise<void>;
 }
 
 function createId(): string {
@@ -56,7 +56,7 @@ function createMockInventoryService(): InventoryService {
       // Mock: retorna histórico vazio
       return [];
     },
-    async assign(id: string, userId: string) {
+    async assign(id: string, userId: string, _options?: { signatureBase64?: string }) {
       const item = items.find((i) => i.id === id);
       if (!item) throw new Error('Item not found');
       item.assignedTo = userId;
@@ -108,14 +108,18 @@ function createHttpInventoryService(http: HttpClient): InventoryService {
     history(id: string) {
       return http.get<InventoryHistoryEvent[]>(`/items/${encodeURIComponent(id)}/history`);
     },
-    assign(id: string, userId: string) {
-      return http.post<void>(`/items/${encodeURIComponent(id)}/assign`, { userId });
+    assign(id: string, userId: string, options?: { signatureBase64?: string }) {
+      return http.post<void>(`/items/${encodeURIComponent(id)}/assign`, {
+        userId,
+        signatureBase64: options?.signatureBase64 ?? null,
+      });
     },
-    returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }) {
+    returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }) {
       return http.post<void>(`/items/${encodeURIComponent(id)}/return`, {
         returnPhoto: options?.returnPhoto ?? null,
         returnNotes: options?.returnNotes ?? null,
         returnItems: options?.returnItems ?? null,
+        signatureBase64: options?.signatureBase64 ?? null,
       });
     },
   };
