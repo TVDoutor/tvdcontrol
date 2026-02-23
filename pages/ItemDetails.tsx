@@ -28,22 +28,22 @@ function addMonths(date: Date, months: number): Date {
     return next;
 }
 
-// Configuração de itens a devolver por tipo de equipamento
+// Configuração de itens a devolver por tipo de equipamento (todos selecionáveis)
 const RETURN_ITEMS_CONFIG = {
     notebook: [
-        { id: 'notebook', label: '01 - Notebook', required: true },
-        { id: 'fonte', label: '02 - Fonte de Alimentação', required: true },
-        { id: 'mouse', label: 'Mouse', required: false },
-        { id: 'teclado', label: 'Teclado', required: false },
+        { id: 'notebook', label: '01 - Notebook' },
+        { id: 'fonte', label: '02 - Fonte de Alimentação' },
+        { id: 'mouse', label: 'Mouse' },
+        { id: 'teclado', label: 'Teclado' },
     ],
     smartphone: [
-        { id: 'smartphone', label: '01 - Smartphone', required: true },
-        { id: 'fonte', label: '02 - Fonte de Alimentação', required: true },
-        { id: 'chip', label: '03 - Chip / Sim Card', required: true },
+        { id: 'smartphone', label: '01 - Smartphone' },
+        { id: 'fonte', label: '02 - Fonte de Alimentação' },
+        { id: 'chip', label: '03 - Chip / Sim Card' },
     ],
 } as const;
 
-function getReturnItemsForItem(item: { category?: string; type?: string } | undefined): Array<{ id: string; label: string; required: boolean }> {
+function getReturnItemsForItem(item: { category?: string; type?: string } | undefined): Array<{ id: string; label: string }> {
     if (!item) return [];
     const cat = (item.category || '').toLowerCase().trim();
     const typ = (item.type || '').toLowerCase().trim();
@@ -254,8 +254,8 @@ const ItemDetails: React.FC = () => {
         setReturnPhoto('');
         setReturnNotes('');
         const items = getReturnItemsForItem(item);
-        const defaultSelected = items.filter((i) => i.required).map((i) => i.id);
-        setReturnItemsSelected(defaultSelected);
+        // Inicia com todos marcados; o usuário desmarca os que estão faltando
+        setReturnItemsSelected(items.map((i) => i.id));
         setShowReturnModal(true);
     };
 
@@ -367,6 +367,7 @@ const ItemDetails: React.FC = () => {
                             {returnItemsList.length > 0 && (
                                 <div>
                                     <p className="text-sm font-medium text-slate-900 dark:text-white mb-3">Itens a devolver</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Marque os itens que estão sendo devolvidos. Desmarque os que estão faltando e informe nas observações.</p>
                                     <div className="space-y-2">
                                         {returnItemsList.map((it) => (
                                             <label
@@ -375,17 +376,15 @@ const ItemDetails: React.FC = () => {
                                                     returnItemsSelected.includes(it.id)
                                                         ? 'border-primary bg-primary/5'
                                                         : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                                } ${it.required ? 'opacity-100' : ''}`}
+                                                }`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={returnItemsSelected.includes(it.id)}
-                                                    onChange={() => !it.required && toggleReturnItem(it.id)}
-                                                    disabled={it.required}
+                                                    onChange={() => toggleReturnItem(it.id)}
                                                     className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
                                                 />
                                                 <span className="text-sm text-slate-900 dark:text-white">{it.label}</span>
-                                                {it.required && <span className="text-xs text-slate-400">(obrigatório)</span>}
                                             </label>
                                         ))}
                                     </div>
@@ -398,7 +397,7 @@ const ItemDetails: React.FC = () => {
                                     id="return-notes"
                                     value={returnNotes}
                                     onChange={(e) => setReturnNotes(e.target.value)}
-                                    placeholder="Adicione observações sobre o estado do equipamento, acessórios faltantes, etc."
+                                    placeholder="Ex.: Itens faltantes: Fonte de Alimentação. Estado do equipamento: arranhões na tela. Utilize este campo para informar qualquer item que não foi devolvido."
                                     rows={3}
                                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white p-3 placeholder:text-slate-400 focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none"
                                     disabled={isReturning}
