@@ -339,9 +339,15 @@ const ItemDetails: React.FC = () => {
                         </div>
                         <div className="p-6 overflow-y-auto">
                             <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-8">
-                                {(historyEvents || []).map((event) => (
-                                    <TimelineEvent key={event.id} {...event} />
-                                ))}
+                                {(historyEvents || []).length > 0 ? (
+                                    (historyEvents || []).map((event) => (
+                                        <TimelineEvent key={event.id} {...event} />
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-4">
+                                        Nenhum evento registrado para este item.
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end">
@@ -554,7 +560,10 @@ const ItemDetails: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3 self-end md:self-auto">
                         <button
-                            onClick={() => setShowHistory(true)}
+                            onClick={() => {
+                                setShowHistory(true);
+                                if (itemId) void loadHistory(itemId);
+                            }}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-surface-dark text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
                         >
                             <span className="material-symbols-outlined text-[18px]">history</span>
@@ -803,7 +812,7 @@ const ItemDetails: React.FC = () => {
                                         <TimelineEvent key={event.id} {...event} />
                                     ))}
                                 </div>
-                                <button onClick={() => setShowHistory(true)} className="w-full mt-6 py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors uppercase tracking-wide">Ver Histórico Completo</button>
+                                <button onClick={() => { setShowHistory(true); if (itemId) void loadHistory(itemId); }} className="w-full mt-6 py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors uppercase tracking-wide">Ver Histórico Completo</button>
                             </div>
                         </div>
                     </div>

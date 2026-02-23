@@ -44,11 +44,34 @@ async function ensureRefreshTokenColumns(): Promise<void> {
   await ensureColumn('refresh_token_expires_at', `ALTER TABLE users ADD COLUMN refresh_token_expires_at DATETIME NULL`);
 }
 
+async function ensureInventoryHistoryTable(): Promise<void> {
+  const [tables] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory_history' LIMIT 1`
+  );
+  if (Array.isArray(tables) && tables.length > 0) return;
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS inventory_history (
+      id CHAR(36) PRIMARY KEY,
+      item_id CHAR(36) NOT NULL,
+      actor_user_id CHAR(36) NULL,
+      event_type VARCHAR(40) NOT NULL,
+      color ENUM('primary','slate','success','danger') NULL,
+      title VARCHAR(160) NOT NULL,
+      description TEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_hist_item_created (item_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+}
+
 async function ensureItemPhotoColumns(): Promise<void> {
   const [tables] = await pool.query(
     `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory_items' LIMIT 1`
   );
   if (!Array.isArray(tables) || tables.length === 0) return;
+
+  await ensureInventoryHistoryTable();
 
   const ensureColumn = async (table: string, columnName: string, ddl: string) => {
     const [cols] = await pool.query(
@@ -68,6 +91,7 @@ async function ensureItemPhotoColumns(): Promise<void> {
   await ensureColumn('inventory_history', 'return_notes', `ALTER TABLE inventory_history ADD COLUMN return_notes TEXT NULL`);
   await ensureColumn('inventory_history', 'return_items', `ALTER TABLE inventory_history ADD COLUMN return_items TEXT NULL`);
 }
+
 
 async function ensureCategoriesTableAndSeed(): Promise<void> {
   await pool.query(`

@@ -105,10 +105,9 @@ export function InventoryStoreProvider({ children }: { children: React.ReactNode
   const assignItem = useCallback(
     async (id: string, userId: string) => {
       await service.assign(id, userId);
-      // Refresh item + history for consistency
       const updated = await service.get(id);
       setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
-      await loadHistory(id);
+      void loadHistory(id).catch(() => {});
     },
     [service, loadHistory]
   );
