@@ -1,5 +1,11 @@
 export type UserRole = 'Administrador' | 'Gerente' | 'Usuario';
 
+/** Usuário de sistema: pode incluir, excluir e ajustar dados (Administrador, Gerente) */
+export const SYSTEM_ROLES: UserRole[] = ['Administrador', 'Gerente'];
+
+/** Usuário de produto/inventário: usa o inventário, não gerencia sistema (Usuario) */
+export const PRODUCT_ROLES: UserRole[] = ['Usuario'];
+
 export interface User {
     id: string;
     name: string;

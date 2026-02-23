@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { query, queryOne } from '../db';
 import { authenticateUser } from '../utils/auth';
-import { canManageUsers } from '../utils/permissions';
+import { canManageCategories } from '../utils/permissions';
 import { generateUUID } from '../utils/uuid';
 
 export const categoriesRouter = Router();
 
 categoriesRouter.use(authenticateUser);
 categoriesRouter.use((req, res, next) => {
-  if (!canManageUsers(req.user?.role)) {
+  if (!canManageCategories(req.user?.role)) {
     return res.status(403).json({ error: 'Sem permissão para gerenciar categorias' });
   }
   next();

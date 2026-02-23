@@ -1,7 +1,7 @@
 import React from 'react';
 import type { InventoryItem, User, UserRole } from '../../../types';
 import { canManageUsers } from '../../../utils/permissions';
-import { USER_ROLES } from '../constants';
+import { USER_ROLES, ROLE_LABELS } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 import { ContactItem, InventoryItemCard } from './UserDrawerParts';
 
@@ -214,7 +214,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       <Dropdown
                         name="role"
                         value={(editFormData.role as UserRole | undefined) ?? 'Usuario'}
-                        options={USER_ROLES.map((role) => ({ value: role, label: role, icon: 'badge' }))}
+                        options={USER_ROLES.map((role) => ({ value: role, label: `${role} — ${ROLE_LABELS[role]}`, icon: 'badge' }))}
                         buttonClassName="w-full text-center text-sm bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-slate-700 dark:text-slate-300 focus:ring-primary focus:border-primary outline-none flex items-center justify-between"
                         onValueChange={(v) => emitChange('role', v)}
                         renderValue={(_value, option) => (
@@ -258,7 +258,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                   <>
                     <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark">{selectedUser.name}</h2>
                     <p className="text-text-sub-light dark:text-text-sub-dark text-sm">
-                      {selectedUser.role} • ID: #
+                      {ROLE_LABELS[selectedUser.role as UserRole] ?? selectedUser.role} • ID: #
                       {selectedUser.id === 'admin'
                         ? 'ADMIN'
                         : selectedUser.id.length > 5

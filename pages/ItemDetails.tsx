@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useInventoryStore } from '../store/InventoryStore';
 import { useUsersStore } from '../store/UsersStore';
+import { useAuthStore } from '../store/AuthStore';
+import { canUpdate } from '../utils/permissions';
 import { getCategoriesService } from '../services/categoriesService';
 
 function parseLocalDate(dateText: string): Date | null {
@@ -32,6 +34,8 @@ const ItemDetails: React.FC = () => {
     const itemId = params.id ? String(params.id) : '';
     const { getById, updateItem, loadHistory, historyById, assignItem, returnItem } = useInventoryStore();
     const { users } = useUsersStore();
+    const { user: currentUser } = useAuthStore();
+    const allowEdit = canUpdate(currentUser);
     const [isEditing, setIsEditing] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
@@ -39,13 +43,13 @@ const ItemDetails: React.FC = () => {
     const [dbCategories, setDbCategories] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Check if we navigated here with the intention to edit
+    // Check if we navigated here with the intention to edit (only for system users)
     useEffect(() => {
         const state = location.state as { editMode?: boolean };
-        if (state?.editMode) {
+        if (state?.editMode && allowEdit) {
             setIsEditing(true);
         }
-    }, [location]);
+    }, [location, allowEdit]);
 
     const item = itemId ? getById(itemId) : undefined;
     const historyEvents = itemId ? historyById[itemId] : undefined;
@@ -404,7 +408,7 @@ const ItemDetails: React.FC = () => {
                                     Salvar
                                 </button>
                             </div>
-                        ) : (
+                        ) : allowEdit ? (
                             <button
                                 onClick={() => setIsEditing(true)}
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm text-sm font-bold"
@@ -412,7 +416,7 @@ const ItemDetails: React.FC = () => {
                                 <span className="material-symbols-outlined text-[18px]">edit</span>
                                 Editar Item
                             </button>
-                        )}
+                        ) : null}
                     </div>
                 </div>
 

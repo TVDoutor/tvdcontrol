@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { User } from '../../../types';
+import type { User, UserRole } from '../../../types';
+import { ROLE_LABELS } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 
 interface UsersTableProps {
@@ -41,7 +42,9 @@ const UsersTable: React.FC<UsersTableProps> = ({
           <h1 className="text-3xl font-bold tracking-tight text-text-main-light dark:text-text-main-dark">
             Gerenciamento de Usuários
           </h1>
-          <p className="text-text-sub-light dark:text-text-sub-dark mt-1">Visualize e gerencie acessos e ativos.</p>
+          <p className="text-text-sub-light dark:text-text-sub-dark mt-1">
+            Usuários de <strong>Sistema</strong> incluem, excluem e ajustam dados. Usuários de <strong>Produto/Inventário</strong> apenas utilizam o inventário.
+          </p>
         </div>
         <button
           onClick={onNewUser}
@@ -97,6 +100,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <thead className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-border-light dark:border-border-dark text-xs uppercase text-text-sub-light dark:text-text-sub-dark font-semibold">
               <tr>
                 <th className="px-6 py-4">Usuário</th>
+                <th className="px-6 py-4 hidden sm:table-cell">Perfil</th>
                 <th className="px-6 py-4 hidden sm:table-cell">Departamento</th>
                 <th className="px-6 py-4 text-center hidden sm:table-cell">Itens</th>
                 <th className="px-6 py-4 hidden md:table-cell">Status</th>
@@ -106,7 +110,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <tbody className="divide-y divide-border-light dark:divide-border-dark text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
+                  <td colSpan={6} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
                     Carregando usuários...
                   </td>
                 </tr>
@@ -142,6 +146,15 @@ const UsersTable: React.FC<UsersTableProps> = ({
                           </span>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 hidden sm:table-cell">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        user.role === 'Usuario'
+                          ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                      }`}>
+                        {ROLE_LABELS[user.role as UserRole] ?? user.role}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-text-sub-light dark:text-text-sub-dark hidden sm:table-cell">
                       {user.department}
@@ -207,7 +220,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
+                  <td colSpan={6} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
                     Nenhum usuário encontrado para "{searchQuery}".
                   </td>
                 </tr>

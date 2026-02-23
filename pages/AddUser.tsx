@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
-import { DEPARTMENTS, USER_ROLES } from './users/constants';
+import { DEPARTMENTS, USER_ROLES, ROLE_LABELS } from './users/constants';
 
 const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
 
@@ -211,10 +211,13 @@ const AddUser: React.FC = () => {
                 >
                   {USER_ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {role}
+                      {role} — {ROLE_LABELS[role]}
                     </option>
                   ))}
                 </select>
+                <span className="text-xs text-text-sub-light dark:text-text-sub-dark">
+                  Produto/Inventário: usa o sistema. Sistema: inclui, exclui e ajusta dados.
+                </span>
               </label>
 
               <label className="flex flex-col gap-2">

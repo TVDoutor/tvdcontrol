@@ -38,23 +38,54 @@ const vercelOrigins = vercelUrl
   ? [`https://${vercelUrl}`, `https://www.${vercelUrl}`]
   : [];
 
+function isPrivateIpv4(hostname: string): boolean {
+  const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const octets = match.slice(1).map((part) => Number(part));
+  if (octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)) return false;
+
+  const [a, b] = octets;
+  if (a === 10) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 127) return true;
+  return false;
+}
+
+function isLocalHostname(hostname: string): boolean {
+  if (hostname === 'localhost') return true;
+  return isPrivateIpv4(hostname);
+}
+
+const extraCorsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
+  : [];
+
 export const config = {
   port: parseInt(process.env.PORT || '8080', 10),
-  corsOrigin: process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-    : isProduction
-      ? ['https://tvdcontrol.tvdoutor.com.br', ...vercelOrigins]
-      : [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:5173',
-        `http://${os.hostname()}:3000`,
-        `http://${os.hostname()}:3001`,
-        `http://${os.hostname()}:5173`,
-        `http://${getIpAddress()}:3000`,
-        `http://${getIpAddress()}:3001`,
-        `http://${getIpAddress()}:5173`,
-      ],
+  corsOrigin: isProduction
+    ? ['https://tvdcontrol.tvdoutor.com.br', ...vercelOrigins, ...extraCorsOrigins]
+    : (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (extraCorsOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      try {
+        const { hostname } = new URL(origin);
+        if (isLocalHostname(hostname)) {
+          callback(null, true);
+          return;
+        }
+      } catch {
+        // fallthrough to reject
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
   db: {
     host: process.env.DB_HOST || (isProduction ? 'tvdcontrol-mysql' : 'localhost'),
     port: parseInt(process.env.DB_PORT || '3306', 10),

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/AuthStore';
+import { isSystemUser, isAdministrator } from '../utils/permissions';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -16,7 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const isInventoryActive = location.pathname === '/inventory' || (location.pathname.startsWith('/item/') && location.pathname !== '/items/add');
 
   const handleProfileClick = () => {
-      if (user?.role !== 'Administrador') {
+      if (!isAdministrator(user)) {
         navigate('/profile', { state: { editMode: true } });
         if (onClose) onClose();
         return;
@@ -86,23 +87,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
                 <span className="text-sm">Visão Geral</span>
               </Link>
 
-              <Link 
-                to="/items/add"
-                onClick={handleLinkClick}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
-                  isActive('/items/add') 
-                    ? 'bg-primary/10 text-primary font-semibold' 
-                    : 'text-text-sub-light dark:text-text-sub-dark hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
-                }`}
-              >
-                 <span className={`material-symbols-outlined text-[20px] ${isActive('/items/add') ? 'filled' : ''}`}>add_circle</span>
-                 <span className="text-sm">Adicionar Item</span>
-              </Link>
+              {isSystemUser(user) && (
+                <Link 
+                  to="/items/add"
+                  onClick={handleLinkClick}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                    isActive('/items/add') 
+                      ? 'bg-primary/10 text-primary font-semibold' 
+                      : 'text-text-sub-light dark:text-text-sub-dark hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
+                  }`}
+                >
+                  <span className={`material-symbols-outlined text-[20px] ${isActive('/items/add') ? 'filled' : ''}`}>add_circle</span>
+                  <span className="text-sm">Adicionar Item</span>
+                </Link>
+              )}
               
-              {user?.role === 'Administrador' && (
-                <>
-                  <Link 
-                    to="/categories"
+              {isSystemUser(user) && (
+                <Link 
+                  to="/categories"
                     onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
                       isActive('/categories') 
@@ -112,9 +114,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
                   >
                     <span className={`material-symbols-outlined text-[20px] ${isActive('/categories') ? 'filled' : ''}`}>category</span>
                     <span className="text-sm">Categorias</span>
-                  </Link>
-                  <Link 
-                    to="/users"
+                </Link>
+              )}
+              
+              {isAdministrator(user) && (
+                <Link 
+                  to="/users"
                     onClick={handleLinkClick}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
                       isActive('/users') 
@@ -124,8 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
                   >
                     <span className={`material-symbols-outlined text-[20px] ${isActive('/users') ? 'filled' : ''}`}>group</span>
                     <span className="text-sm">Usuários</span>
-                  </Link>
-                </>
+                </Link>
               )}
 
               <Link 
