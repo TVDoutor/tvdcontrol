@@ -39,6 +39,7 @@ export interface InventoryItem {
     location?: string;
     specs?: string;
     notes?: string;
+    photoMain?: string;
 }
 
 export type InventoryHistoryEvent = {
@@ -47,6 +48,7 @@ export type InventoryHistoryEvent = {
     date: string;
     title: string;
     desc: string;
+    returnPhoto?: string;
 };
 
 export enum ItemStatus {

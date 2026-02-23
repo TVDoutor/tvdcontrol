@@ -44,6 +44,29 @@ async function ensureRefreshTokenColumns(): Promise<void> {
   await ensureColumn('refresh_token_expires_at', `ALTER TABLE users ADD COLUMN refresh_token_expires_at DATETIME NULL`);
 }
 
+async function ensureItemPhotoColumns(): Promise<void> {
+  const [tables] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory_items' LIMIT 1`
+  );
+  if (!Array.isArray(tables) || tables.length === 0) return;
+
+  const ensureColumn = async (table: string, columnName: string, ddl: string) => {
+    const [cols] = await pool.query(
+      `SELECT 1 AS ok FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1`,
+      [table, columnName]
+    );
+    if (Array.isArray(cols) && cols.length > 0) return;
+    try {
+      await pool.query(ddl);
+    } catch (e: any) {
+      if (e?.code === 'ER_DUP_FIELDNAME') return;
+      throw e;
+    }
+  };
+  await ensureColumn('inventory_items', 'photo_main', `ALTER TABLE inventory_items ADD COLUMN photo_main TEXT NULL`);
+  await ensureColumn('inventory_history', 'return_photo', `ALTER TABLE inventory_history ADD COLUMN return_photo TEXT NULL`);
+}
+
 async function ensureCategoriesTableAndSeed(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS categories (
@@ -63,13 +86,19 @@ async function ensureCategoriesTableAndSeed(): Promise<void> {
     );
   }
 
-  const [itemCategories] = await pool.query(
-    `SELECT DISTINCT TRIM(category) AS name
-     FROM inventory_items
-     WHERE category IS NOT NULL AND TRIM(category) <> ''`
-  );
+  let itemCategories: unknown[] = [];
+  try {
+    const [rows] = await pool.query(
+      `SELECT DISTINCT TRIM(category) AS name
+       FROM inventory_items
+       WHERE category IS NOT NULL AND TRIM(category) <> ''`
+    );
+    itemCategories = Array.isArray(rows) ? rows : [];
+  } catch {
+    // inventory_items pode não existir ainda; ignora
+  }
 
-  if (Array.isArray(itemCategories)) {
+  if (Array.isArray(itemCategories) && itemCategories.length > 0) {
     for (const row of itemCategories as any[]) {
       const name = typeof row?.name === 'string' ? row.name.trim() : '';
       if (!name) continue;
@@ -150,6 +179,7 @@ export async function getApp(): Promise<express.Express> {
   appPromise = (async () => {
     try {
       await ensureRefreshTokenColumns();
+      await ensureItemPhotoColumns();
       await ensureCategoriesTableAndSeed();
     } catch (e) {
       console.error('[tvdcontrol-backend] schema init error:', e);

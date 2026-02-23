@@ -2,6 +2,7 @@ import React from 'react';
 import type { User } from '../../../types';
 import type { AddItemFormData, CategoryOption } from '../constants';
 import { DropdownField } from '../../../components/Dropdown';
+import PhotoUpload from '../../../components/PhotoUpload';
 
 interface AddItemFormProps {
   categoryOptions: CategoryOption[];
@@ -11,6 +12,7 @@ interface AddItemFormProps {
   isSaving: boolean;
   getInputClass: (fieldName: string) => string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  onPhotoChange: (photoMain: string) => void;
   onCategorySelect: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -24,6 +26,7 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
   isSaving,
   getInputClass,
   onChange,
+  onPhotoChange,
   onCategorySelect,
   onCancel,
   onSave,
@@ -150,6 +153,15 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
             </div>
             {errors.serialNumber && <p className="text-red-500 text-xs mt-1 font-medium">{errors.serialNumber}</p>}
           </label>
+          <div className="flex flex-col flex-1 md:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: '560ms' }}>
+            <PhotoUpload
+              value={formData.photoMain}
+              onChange={onPhotoChange}
+              label="Foto do equipamento"
+              placeholder="Clique para adicionar foto do equipamento"
+              helperText="Opcional. Registre o estado do equipamento no momento do cadastro."
+            />
+          </div>
         </div>
       </div>
       <div className="p-4 md:p-8 border-b border-border-light dark:border-border-dark bg-[#f8f9fc] dark:bg-[#15202b]">

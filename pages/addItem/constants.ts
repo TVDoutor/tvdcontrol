@@ -12,6 +12,7 @@ export type AddItemFormData = {
   purchaseDate: string;
   warrantyEnd: string;
   notes: string;
+  photoMain: string;
 };
 
 export type CategoryOption = {
@@ -42,6 +43,7 @@ export const INITIAL_FORM_DATA: AddItemFormData = {
   purchaseDate: '',
   warrantyEnd: '',
   notes: '',
+  photoMain: '',
 };
 
 export function getCategoryIcon(category: string): string {

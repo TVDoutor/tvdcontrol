@@ -54,6 +54,7 @@ async function addHistoryEvent(conn: PoolConnection, params: {
   color?: 'primary' | 'slate' | 'success' | 'danger' | null;
   title: string;
   description?: string | null;
+  returnPhoto?: string | null;
 }) {
   const id = uuid();
   const {
@@ -63,14 +64,15 @@ async function addHistoryEvent(conn: PoolConnection, params: {
     color = null,
     title,
     description = null,
+    returnPhoto = null,
   } = params;
 
   await conn.query(
     `
-    INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description, return_photo)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [id, itemId, actorUserId, eventType, color, title, description]
+    [id, itemId, actorUserId, eventType, color, title, description, returnPhoto]
   );
 }
 
@@ -95,6 +97,7 @@ itemsRouter.get('/', authenticateUser, async (_req, res, next) => {
         purchase_price AS purchasePrice,
         warranty_end AS warrantyEnd,
         location, specs, notes,
+        photo_main AS photoMain,
         created_at AS createdAt,
         updated_at AS updatedAt
       FROM inventory_items
@@ -129,6 +132,7 @@ itemsRouter.get('/:id', authenticateUser, async (req, res, next) => {
         purchase_price AS purchasePrice,
         warranty_end AS warrantyEnd,
         location, specs, notes,
+        photo_main AS photoMain,
         created_at AS createdAt,
         updated_at AS updatedAt
       FROM inventory_items
@@ -175,6 +179,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
     const serialNumber = body.serialNumber;
     // Tag de patrimônio é gerada automaticamente no backend.
     const icon = body.icon ?? null;
+    const photoMain = body.photoMain ?? null;
     const status = body.status ?? 'available';
     const assignedTo = body.assignedTo ?? null;
     const purchaseDate = body.purchaseDate;
@@ -195,8 +200,8 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
       await conn.query(
         `
         INSERT INTO inventory_items
-        (id, category, type, manufacturer, name, model, serial_number, asset_tag, sku, icon, status, assigned_to_user_id, purchase_date, purchase_price, warranty_end, location, specs, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, category, type, manufacturer, name, model, serial_number, asset_tag, sku, icon, photo_main, status, assigned_to_user_id, purchase_date, purchase_price, warranty_end, location, specs, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           id,
@@ -209,6 +214,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           generatedAssetTag,
           generatedAssetTag,
           icon,
+          photoMain,
           status,
           assignedTo,
           purchaseDate,
@@ -238,6 +244,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           asset_tag AS assetTag,
           sku,
           icon,
+          photo_main AS photoMain,
           status,
           assigned_to_user_id AS assignedTo,
           purchase_date AS purchaseDate,
@@ -294,6 +301,7 @@ itemsRouter.put('/:id', authenticateUser, async (req, res, next) => {
       ['asset_tag', patch.assetTag],
       ['sku', patch.sku],
       ['icon', patch.icon],
+      ['photo_main', patch.photoMain],
       ['status', patch.status],
       ['assigned_to_user_id', patch.assignedTo],
       ['purchase_date', patch.purchaseDate],
@@ -331,6 +339,7 @@ itemsRouter.put('/:id', authenticateUser, async (req, res, next) => {
           asset_tag AS assetTag,
           sku,
           icon,
+          photo_main AS photoMain,
           status,
           assigned_to_user_id AS assignedTo,
           purchase_date AS purchaseDate,
@@ -377,15 +386,16 @@ itemsRouter.get('/:id/history', authenticateUser, async (req, res, next) => {
     const id = String(req.params.id);
     const [rows] = await pool.query(
       `
-      SELECT 
-        id,
-        color,
-        DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS date,
-        title,
-        description AS desc
-      FROM inventory_history
-      WHERE item_id = ?
-      ORDER BY created_at DESC
+        SELECT 
+          id,
+          color,
+          DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS date,
+          title,
+          description AS desc,
+          return_photo AS returnPhoto
+        FROM inventory_history
+        WHERE item_id = ?
+        ORDER BY created_at DESC
       `,
       [id]
     );
@@ -428,6 +438,7 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
 itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
   try {
     const id = String(req.params.id);
+    const returnPhoto = req.body?.returnPhoto ?? null;
 
     await withTransaction(async (conn) => {
       await conn.query(
@@ -442,6 +453,7 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
         color: 'success',
         title: 'Devolvido ao estoque',
         description: 'Item retornado ao estoque. Status alterado para Disponível.',
+        returnPhoto,
       });
     });
 

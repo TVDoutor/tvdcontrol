@@ -73,6 +73,10 @@ const AddItem: React.FC = () => {
     }
   };
 
+  const handlePhotoChange = (photoMain: string) => {
+    setFormData((prev) => ({ ...prev, photoMain }));
+  };
+
   const handleCategorySelect = (value: string) => {
     setFormData((prev) => ({ ...prev, category: value, type: '' }));
 
@@ -114,7 +118,7 @@ const AddItem: React.FC = () => {
   };
 
   const handleCancel = () => {
-    const hasData = formData.name || formData.serialNumber || formData.category || formData.purchaseDate;
+    const hasData = formData.name || formData.serialNumber || formData.category || formData.purchaseDate || formData.photoMain;
     if (hasData) {
       setShowCancelModal(true);
     } else {
@@ -149,6 +153,7 @@ const AddItem: React.FC = () => {
           purchaseDate: formData.purchaseDate,
           warrantyEnd: formData.warrantyEnd,
           notes: formData.notes || '',
+          photoMain: formData.photoMain || undefined,
         });
         setCreatedId(created.id);
         setIsSaving(false);
@@ -171,7 +176,7 @@ const AddItem: React.FC = () => {
       } catch {
         nextTag = '';
       }
-      setFormData({ ...INITIAL_FORM_DATA, assetTag: nextTag });
+      setFormData({ ...INITIAL_FORM_DATA, assetTag: nextTag, photoMain: '' });
       setShowSuccess(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     })();
@@ -248,6 +253,7 @@ const AddItem: React.FC = () => {
           isSaving={isSaving}
           getInputClass={getInputClass}
           onChange={handleChange}
+          onPhotoChange={handlePhotoChange}
           onCategorySelect={handleCategorySelect}
           onCancel={handleCancel}
           onSave={handleSave}

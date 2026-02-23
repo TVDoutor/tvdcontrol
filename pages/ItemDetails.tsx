@@ -5,6 +5,7 @@ import { useUsersStore } from '../store/UsersStore';
 import { useAuthStore } from '../store/AuthStore';
 import { canUpdate } from '../utils/permissions';
 import { getCategoriesService } from '../services/categoriesService';
+import PhotoUpload from '../components/PhotoUpload';
 
 function parseLocalDate(dateText: string): Date | null {
     if (!dateText) return null;
@@ -39,6 +40,9 @@ const ItemDetails: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
+    const [showReturnModal, setShowReturnModal] = useState(false);
+    const [returnPhoto, setReturnPhoto] = useState('');
+    const [isReturning, setIsReturning] = useState(false);
     const [selectedAssignUserId, setSelectedAssignUserId] = useState('');
     const [dbCategories, setDbCategories] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -215,9 +219,21 @@ const ItemDetails: React.FC = () => {
         setIsEditing(false);
     };
 
-    const handleReturnItem = () => {
+    const handleOpenReturnModal = () => {
         if (!item || !item.assignedTo) return;
-        void returnItem(item.id);
+        setReturnPhoto('');
+        setShowReturnModal(true);
+    };
+
+    const handleConfirmReturn = () => {
+        if (!item) return;
+        setIsReturning(true);
+        void returnItem(item.id, { returnPhoto: returnPhoto || undefined })
+            .then(() => {
+                setShowReturnModal(false);
+                setReturnPhoto('');
+            })
+            .finally(() => setIsReturning(false));
     };
 
     const handleAssignItem = (targetUserId?: string) => {
@@ -274,6 +290,61 @@ const ItemDetails: React.FC = () => {
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end">
                             <button onClick={() => setShowHistory(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-sm font-medium text-slate-800 dark:text-slate-200 transition-colors">
                                 Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Devolução */}
+            {showReturnModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => !isReturning && setShowReturnModal(false)}>
+                    <div className="bg-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b border-border-light dark:border-border-dark">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Devolver Item ao Estoque</h3>
+                            <button onClick={() => !isReturning && setShowReturnModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors" disabled={isReturning}>
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                Registre o estado do equipamento no momento da devolução. A foto será salva no histórico.
+                            </p>
+                            <PhotoUpload
+                                value={returnPhoto}
+                                onChange={setReturnPhoto}
+                                label="Foto do equipamento (na devolução)"
+                                placeholder="Clique para adicionar foto"
+                                helperText="Opcional. Recomendado para documentar o estado no retorno."
+                            />
+                        </div>
+                        <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+                            <button
+                                onClick={() => !isReturning && setShowReturnModal(false)}
+                                disabled={isReturning}
+                                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-60"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmReturn}
+                                disabled={isReturning}
+                                className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm text-sm font-bold flex items-center gap-2"
+                            >
+                                {isReturning ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                        </svg>
+                                        Devolvendo...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-[18px]">assignment_return</span>
+                                        Confirmar Devolução
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -424,6 +495,18 @@ const ItemDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column (2/3) */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
+                        {/* Foto do Equipamento */}
+                        {item?.photoMain && (
+                            <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
+                                <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
+                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
+                                </div>
+                                <div className="p-6">
+                                    <img src={item.photoMain} alt="Equipamento" className="rounded-lg max-w-full max-h-[280px] object-contain border border-slate-100 dark:border-slate-700" />
+                                </div>
+                            </div>
+                        )}
+
                         {/* General Info */}
                         <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
                             <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
@@ -587,7 +670,7 @@ const ItemDetails: React.FC = () => {
                                         <div className="w-full mt-6 flex gap-3">
                                             <button onClick={() => navigate('/users')} className="flex-1 py-2 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Ver Perfil</button>
                                             <button
-                                                onClick={handleReturnItem}
+                                                onClick={handleOpenReturnModal}
                                                 className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium text-sm"
                                             >
                                                 <span className="material-symbols-outlined text-[16px]">assignment_return</span>
@@ -652,8 +735,7 @@ const InfoField = ({ label, value, icon, isEditing, name, onChange }: any) => (
     </div>
 );
 
-const TimelineEvent = ({ color, date, title, desc }: any) => {
-    // Determine color class based on the 'color' prop
+const TimelineEvent = ({ color, date, title, desc, returnPhoto }: any) => {
     let bgClass = 'bg-slate-300 dark:bg-slate-600';
     if (color === 'primary') bgClass = 'bg-primary';
     if (color === 'success') bgClass = 'bg-emerald-500';
@@ -665,6 +747,12 @@ const TimelineEvent = ({ color, date, title, desc }: any) => {
             <p className="text-xs text-slate-400 font-medium mb-0.5">{date}</p>
             <p className="text-sm font-medium text-slate-900 dark:text-white">{title}</p>
             <p className="text-xs text-slate-500 mt-1">{desc}</p>
+            {returnPhoto && (
+                <div className="mt-2">
+                    <img src={returnPhoto} alt="Foto na devolução" className="rounded-lg max-w-[180px] max-h-[120px] object-cover border border-slate-200 dark:border-slate-700" />
+                    <p className="text-xs text-slate-400 mt-1">Foto registrada na devolução</p>
+                </div>
+            )}
         </div>
     );
 };
