@@ -71,13 +71,29 @@ async function addHistoryEvent(conn: PoolConnection, params: {
     returnItems = null,
   } = params;
 
-  await conn.query(
-    `
+  const hasReturnData = returnPhoto || returnNotes || returnItems;
+  const fullInsert = `
     INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description, return_photo, return_notes, return_items)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [id, itemId, actorUserId, eventType, color, title, description, returnPhoto, returnNotes, returnItems]
-  );
+  `;
+  const minimalInsert = `
+    INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  try {
+    if (hasReturnData) {
+      await conn.query(fullInsert, [id, itemId, actorUserId, eventType, color, title, description, returnPhoto, returnNotes, returnItems]);
+    } else {
+      await conn.query(minimalInsert, [id, itemId, actorUserId, eventType, color, title, description]);
+    }
+  } catch (err: any) {
+    if (err?.code === 'ER_BAD_FIELD_ERROR' && hasReturnData) {
+      await conn.query(minimalInsert, [id, itemId, actorUserId, eventType, color, title, description]);
+    } else {
+      throw err;
+    }
+  }
 }
 
 // GET /items
@@ -388,23 +404,39 @@ itemsRouter.get('/:id/history', authenticateUser, async (req, res, next) => {
       return res.status(403).json({ error: 'Sem permissão para visualizar histórico' });
     }
     const id = String(req.params.id);
-    const [rows] = await pool.query(
-      `
-        SELECT 
-          id,
-          color,
-          DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS date,
-          title,
-          description AS desc,
-          return_photo AS returnPhoto,
-          return_notes AS returnNotes,
-          return_items AS returnItems
-        FROM inventory_history
-        WHERE item_id = ?
-        ORDER BY created_at DESC
-      `,
-      [id]
-    );
+
+    // Tenta query com colunas novas; fallback se não existirem (DB antigo)
+    const fullQuery = `
+      SELECT id, color,
+        DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS date,
+        title, description AS desc,
+        return_photo AS returnPhoto, return_notes AS returnNotes, return_items AS returnItems
+      FROM inventory_history WHERE item_id = ? ORDER BY created_at DESC
+    `;
+    const minimalQuery = `
+      SELECT id, color,
+        DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS date,
+        title, description AS desc
+      FROM inventory_history WHERE item_id = ? ORDER BY created_at DESC
+    `;
+
+    let rows: any[];
+    try {
+      const [r] = await pool.query(fullQuery, [id]);
+      rows = r as any[];
+    } catch (err: any) {
+      if (err?.code === 'ER_BAD_FIELD_ERROR') {
+        const [r] = await pool.query(minimalQuery, [id]);
+        rows = ((r as any[]) || []).map((row) => ({
+          ...row,
+          returnPhoto: null,
+          returnNotes: null,
+          returnItems: null,
+        }));
+      } else {
+        throw err;
+      }
+    }
     res.json(rows);
   } catch (e) {
     next(e);

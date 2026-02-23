@@ -118,7 +118,8 @@ export function InventoryStoreProvider({ children }: { children: React.ReactNode
       await service.returnItem(id, options);
       const updated = await service.get(id);
       setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));
-      await loadHistory(id);
+      // Carrega histórico em segundo plano; não bloqueia fechar o modal se falhar
+      void loadHistory(id).catch(() => {});
     },
     [service, loadHistory]
   );

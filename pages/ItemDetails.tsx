@@ -284,6 +284,10 @@ const ItemDetails: React.FC = () => {
                 setReturnNotes('');
                 setReturnItemsSelected([]);
             })
+            .catch((err) => {
+                const msg = err?.message || 'Não foi possível concluir a devolução. Tente novamente.';
+                alert(msg);
+            })
             .finally(() => setIsReturning(false));
     };
 

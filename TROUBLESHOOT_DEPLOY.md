@@ -13,6 +13,18 @@ O cookie de refresh usava `path: '/auth'`, mas o frontend chama `/api/auth/refre
 - Faça logout e login novamente (para receber o novo cookie)
 - Verifique se `JWT_SECRET` está configurado na Vercel
 
+## 500 ao devolver item / GET /items/:id/history
+
+Se o erro acontece ao clicar em "Devolver item", pode ser que as colunas `return_photo`, `return_notes`, `return_items` não existam em `inventory_history`. O backend agora tem fallback, mas para habilitar foto e observação na devolução, execute no phpMyAdmin **um comando de cada vez** (se der "Duplicate column", a coluna já existe — pule):
+
+```sql
+ALTER TABLE inventory_history ADD COLUMN return_photo TEXT NULL;
+ALTER TABLE inventory_history ADD COLUMN return_notes TEXT NULL;
+ALTER TABLE inventory_history ADD COLUMN return_items TEXT NULL;
+```
+
+*Nota: `ADD COLUMN IF NOT EXISTS` não existe em MySQL antigo (ex.: HostGator).*
+
 ## 500 no login (Vercel + MySQL HostGator)
 
 Quando o login retorna **500 Internal Server Error** em produção:
