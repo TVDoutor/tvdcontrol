@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS inventory_history (
   title VARCHAR(160) NOT NULL,
   description TEXT NULL,
   return_photo TEXT NULL,
+  return_notes TEXT NULL,
+  return_items TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_hist_item FOREIGN KEY (item_id) REFERENCES inventory_items(id) ON DELETE CASCADE,
   CONSTRAINT fk_hist_actor FOREIGN KEY (actor_user_id) REFERENCES users(id),

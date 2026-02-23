@@ -23,7 +23,7 @@ type InventoryStoreValue = {
   historyById: Record<string, InventoryHistoryEvent[] | undefined>;
   loadHistory: (id: string) => Promise<void>;
   assignItem: (id: string, userId: string) => Promise<void>;
-  returnItem: (id: string, options?: { returnPhoto?: string }) => Promise<void>;
+  returnItem: (id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }) => Promise<void>;
 };
 
 const InventoryStoreContext = createContext<InventoryStoreValue | null>(null);
@@ -114,7 +114,7 @@ export function InventoryStoreProvider({ children }: { children: React.ReactNode
   );
 
   const returnItem = useCallback(
-    async (id: string, options?: { returnPhoto?: string }) => {
+    async (id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }) => {
       await service.returnItem(id, options);
       const updated = await service.get(id);
       setItems((prev) => prev.map((i) => (i.id === id ? updated : i)));

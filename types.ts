@@ -49,6 +49,8 @@ export type InventoryHistoryEvent = {
     title: string;
     desc: string;
     returnPhoto?: string;
+    returnNotes?: string;
+    returnItems?: string;
 };
 
 export enum ItemStatus {

@@ -28,6 +28,34 @@ function addMonths(date: Date, months: number): Date {
     return next;
 }
 
+// Configuração de itens a devolver por tipo de equipamento
+const RETURN_ITEMS_CONFIG = {
+    notebook: [
+        { id: 'notebook', label: '01 - Notebook', required: true },
+        { id: 'fonte', label: '02 - Fonte de Alimentação', required: true },
+        { id: 'mouse', label: 'Mouse', required: false },
+        { id: 'teclado', label: 'Teclado', required: false },
+    ],
+    smartphone: [
+        { id: 'smartphone', label: '01 - Smartphone', required: true },
+        { id: 'fonte', label: '02 - Fonte de Alimentação', required: true },
+        { id: 'chip', label: '03 - Chip / Sim Card', required: true },
+    ],
+} as const;
+
+function getReturnItemsForItem(item: { category?: string; type?: string } | undefined): Array<{ id: string; label: string; required: boolean }> {
+    if (!item) return [];
+    const cat = (item.category || '').toLowerCase().trim();
+    const typ = (item.type || '').toLowerCase().trim();
+    if (cat.includes('notebook') || typ === 'notebook' || cat.includes('computador')) {
+        return [...RETURN_ITEMS_CONFIG.notebook];
+    }
+    if (cat.includes('celular') || typ === 'smartphone') {
+        return [...RETURN_ITEMS_CONFIG.smartphone];
+    }
+    return [];
+}
+
 const ItemDetails: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -42,6 +70,8 @@ const ItemDetails: React.FC = () => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [returnPhoto, setReturnPhoto] = useState('');
+    const [returnNotes, setReturnNotes] = useState('');
+    const [returnItemsSelected, setReturnItemsSelected] = useState<string[]>([]);
     const [isReturning, setIsReturning] = useState(false);
     const [selectedAssignUserId, setSelectedAssignUserId] = useState('');
     const [dbCategories, setDbCategories] = useState<string[]>([]);
@@ -222,19 +252,42 @@ const ItemDetails: React.FC = () => {
     const handleOpenReturnModal = () => {
         if (!item || !item.assignedTo) return;
         setReturnPhoto('');
+        setReturnNotes('');
+        const items = getReturnItemsForItem(item);
+        const defaultSelected = items.filter((i) => i.required).map((i) => i.id);
+        setReturnItemsSelected(defaultSelected);
         setShowReturnModal(true);
+    };
+
+    const toggleReturnItem = (id: string) => {
+        setReturnItemsSelected((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
     };
 
     const handleConfirmReturn = () => {
         if (!item) return;
+        const items = getReturnItemsForItem(item);
+        const selectedLabels = items
+            .filter((i) => returnItemsSelected.includes(i.id))
+            .map((i) => i.label);
+        const returnItemsJson = selectedLabels.length > 0 ? JSON.stringify(selectedLabels) : undefined;
         setIsReturning(true);
-        void returnItem(item.id, { returnPhoto: returnPhoto || undefined })
+        void returnItem(item.id, {
+            returnPhoto: returnPhoto || undefined,
+            returnNotes: returnNotes.trim() || undefined,
+            returnItems: returnItemsJson,
+        })
             .then(() => {
                 setShowReturnModal(false);
                 setReturnPhoto('');
+                setReturnNotes('');
+                setReturnItemsSelected([]);
             })
             .finally(() => setIsReturning(false));
     };
+
+    const returnItemsList = getReturnItemsForItem(item);
 
     const handleAssignItem = (targetUserId?: string) => {
         if (!item) return;
@@ -299,17 +352,59 @@ const ItemDetails: React.FC = () => {
             {/* Modal de Devolução */}
             {showReturnModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => !isReturning && setShowReturnModal(false)}>
-                    <div className="bg-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-4 border-b border-border-light dark:border-border-dark">
+                    <div className="bg-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-4 border-b border-border-light dark:border-border-dark shrink-0">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Devolver Item ao Estoque</h3>
                             <button onClick={() => !isReturning && setShowReturnModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors" disabled={isReturning}>
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <div className="p-5 space-y-4">
+                        <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
                             <p className="text-sm text-slate-600 dark:text-slate-400">
                                 Registre o estado do equipamento no momento da devolução. A foto será salva no histórico.
                             </p>
+
+                            {returnItemsList.length > 0 && (
+                                <div>
+                                    <p className="text-sm font-medium text-slate-900 dark:text-white mb-3">Itens a devolver</p>
+                                    <div className="space-y-2">
+                                        {returnItemsList.map((it) => (
+                                            <label
+                                                key={it.id}
+                                                className={`flex items-center gap-3 rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                                                    returnItemsSelected.includes(it.id)
+                                                        ? 'border-primary bg-primary/5'
+                                                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                                } ${it.required ? 'opacity-100' : ''}`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={returnItemsSelected.includes(it.id)}
+                                                    onChange={() => !it.required && toggleReturnItem(it.id)}
+                                                    disabled={it.required}
+                                                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                                />
+                                                <span className="text-sm text-slate-900 dark:text-white">{it.label}</span>
+                                                {it.required && <span className="text-xs text-slate-400">(obrigatório)</span>}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label htmlFor="return-notes" className="block text-sm font-medium text-slate-900 dark:text-white mb-2">Observação</label>
+                                <textarea
+                                    id="return-notes"
+                                    value={returnNotes}
+                                    onChange={(e) => setReturnNotes(e.target.value)}
+                                    placeholder="Adicione observações sobre o estado do equipamento, acessórios faltantes, etc."
+                                    rows={3}
+                                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white p-3 placeholder:text-slate-400 focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none"
+                                    disabled={isReturning}
+                                />
+                            </div>
+
                             <PhotoUpload
                                 value={returnPhoto}
                                 onChange={setReturnPhoto}
@@ -735,11 +830,20 @@ const InfoField = ({ label, value, icon, isEditing, name, onChange }: any) => (
     </div>
 );
 
-const TimelineEvent = ({ color, date, title, desc, returnPhoto }: any) => {
+const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnNotes, returnItems }: any) => {
     let bgClass = 'bg-slate-300 dark:bg-slate-600';
     if (color === 'primary') bgClass = 'bg-primary';
     if (color === 'success') bgClass = 'bg-emerald-500';
     if (color === 'danger') bgClass = 'bg-red-500';
+
+    let itemsList: string[] = [];
+    try {
+        if (typeof returnItems === 'string' && returnItems) {
+            itemsList = JSON.parse(returnItems) as string[];
+        }
+    } catch {
+        // ignore
+    }
 
     return (
         <div className="relative pl-6 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -747,6 +851,22 @@ const TimelineEvent = ({ color, date, title, desc, returnPhoto }: any) => {
             <p className="text-xs text-slate-400 font-medium mb-0.5">{date}</p>
             <p className="text-sm font-medium text-slate-900 dark:text-white">{title}</p>
             <p className="text-xs text-slate-500 mt-1">{desc}</p>
+            {itemsList.length > 0 && (
+                <div className="mt-2 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Itens devolvidos:</p>
+                    <ul className="text-xs text-slate-500 mt-1 space-y-0.5">
+                        {itemsList.map((l, i) => (
+                            <li key={i}>{l}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {returnNotes && (
+                <div className="mt-2 p-2 rounded bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Observação:</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">{returnNotes}</p>
+                </div>
+            )}
             {returnPhoto && (
                 <div className="mt-2">
                     <img src={returnPhoto} alt="Foto na devolução" className="rounded-lg max-w-[180px] max-h-[120px] object-cover border border-slate-200 dark:border-slate-700" />

@@ -14,7 +14,7 @@ export interface InventoryService {
   remove(id: string): Promise<void>;
   history(id: string): Promise<InventoryHistoryEvent[]>;
   assign(id: string, userId: string): Promise<void>;
-  returnItem(id: string, options?: { returnPhoto?: string }): Promise<void>;
+  returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }): Promise<void>;
 }
 
 function createId(): string {
@@ -62,7 +62,7 @@ function createMockInventoryService(): InventoryService {
       item.assignedTo = userId;
       item.status = 'in_use';
     },
-    async     returnItem(id: string, _options?: { returnPhoto?: string }) {
+    async     returnItem(id: string, _options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }) {
       const item = items.find((i) => i.id === id);
       if (!item) throw new Error('Item not found');
       item.assignedTo = undefined;
@@ -111,8 +111,12 @@ function createHttpInventoryService(http: HttpClient): InventoryService {
     assign(id: string, userId: string) {
       return http.post<void>(`/items/${encodeURIComponent(id)}/assign`, { userId });
     },
-    returnItem(id: string, options?: { returnPhoto?: string }) {
-      return http.post<void>(`/items/${encodeURIComponent(id)}/return`, { returnPhoto: options?.returnPhoto ?? null });
+    returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }) {
+      return http.post<void>(`/items/${encodeURIComponent(id)}/return`, {
+        returnPhoto: options?.returnPhoto ?? null,
+        returnNotes: options?.returnNotes ?? null,
+        returnItems: options?.returnItems ?? null,
+      });
     },
   };
 }

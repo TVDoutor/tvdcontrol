@@ -55,6 +55,8 @@ async function addHistoryEvent(conn: PoolConnection, params: {
   title: string;
   description?: string | null;
   returnPhoto?: string | null;
+  returnNotes?: string | null;
+  returnItems?: string | null;
 }) {
   const id = uuid();
   const {
@@ -65,14 +67,16 @@ async function addHistoryEvent(conn: PoolConnection, params: {
     title,
     description = null,
     returnPhoto = null,
+    returnNotes = null,
+    returnItems = null,
   } = params;
 
   await conn.query(
     `
-    INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description, return_photo)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description, return_photo, return_notes, return_items)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [id, itemId, actorUserId, eventType, color, title, description, returnPhoto]
+    [id, itemId, actorUserId, eventType, color, title, description, returnPhoto, returnNotes, returnItems]
   );
 }
 
@@ -392,7 +396,9 @@ itemsRouter.get('/:id/history', authenticateUser, async (req, res, next) => {
           DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS date,
           title,
           description AS desc,
-          return_photo AS returnPhoto
+          return_photo AS returnPhoto,
+          return_notes AS returnNotes,
+          return_items AS returnItems
         FROM inventory_history
         WHERE item_id = ?
         ORDER BY created_at DESC
@@ -439,6 +445,8 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
   try {
     const id = String(req.params.id);
     const returnPhoto = req.body?.returnPhoto ?? null;
+    const returnNotes = req.body?.returnNotes ?? null;
+    const returnItems = req.body?.returnItems ?? null;
 
     await withTransaction(async (conn) => {
       await conn.query(
@@ -454,6 +462,8 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
         title: 'Devolvido ao estoque',
         description: 'Item retornado ao estoque. Status alterado para Disponível.',
         returnPhoto,
+        returnNotes,
+        returnItems,
       });
     });
 
