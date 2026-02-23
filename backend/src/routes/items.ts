@@ -463,13 +463,19 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
         [userId, id]
       );
 
+      const [userRows] = await conn.query('SELECT name FROM users WHERE id = ?', [userId]);
+      const userName = (userRows as any[])[0]?.name ?? null;
+      const assignDesc = userName
+        ? `Item atribuído ao usuário ${userName}.`
+        : `Item atribuído ao usuário (ID: ${userId}).`;
+
       await addHistoryEvent(conn, {
         itemId: id,
         actorUserId: req.user?.id || null,
         eventType: 'assigned',
         color: 'primary',
         title: 'Atribuído a usuário',
-        description: `Item atribuído ao usuário #${userId}.`,
+        description: assignDesc,
       });
     });
 
