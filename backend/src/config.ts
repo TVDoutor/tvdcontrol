@@ -92,6 +92,8 @@ export const config = {
     user: process.env.DB_USER || (isProduction ? 'tvdcontrol' : 'root'),
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'tvdcontrol',
+    ssl: process.env.DB_SSL === 'true',
+    connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT || '10000', 10),
   },
   jwt: {
     secret: process.env.JWT_SECRET || (isProduction ? '' : 'dev-secret'),

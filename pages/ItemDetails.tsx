@@ -300,7 +300,7 @@ const ItemDetails: React.FC = () => {
         void assignItem(item.id, target.id);
     };
 
-    const assignableUsers = users.filter((u) => u.status === 'active');
+    const assignableUsers = users.filter((u) => u.status === 'active' && u.role === 'Usuario');
     const categoryOptions = Array.from(
         new Set([
             ...dbCategories,

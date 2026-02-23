@@ -43,6 +43,11 @@ export function canManageUsers(role: string | null | undefined): boolean {
   return isAdministrator(role);
 }
 
+// Verifica permissão para listar usuários (Administrador e Gerente - para atribuição)
+export function canListUsers(role: string | null | undefined): boolean {
+  return isSystemUser(role);
+}
+
 // Verifica permissão para gerenciar categorias (usuários de sistema)
 export function canManageCategories(role: string | null | undefined): boolean {
   return isSystemUser(role);

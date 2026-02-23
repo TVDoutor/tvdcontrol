@@ -12,6 +12,8 @@ export const pool = mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
+  connectTimeout: config.db.connectTimeout,
+  ...(config.db.ssl && { ssl: { rejectUnauthorized: false } }),
 });
 
 export async function query(sql: string, params?: any[]): Promise<any> {

@@ -79,3 +79,44 @@ GET https://tvdcontrol.vercel.app/api/health
 
 - Resposta `{ "ok": true }` → banco acessível.
 - Resposta 500 ou erro → falha na conexão com MySQL (host, credenciais, SSL ou firewall).
+
+## 7. "Usuário ou senha inválidos" com usuário existente
+
+Se o usuário foi criado e está no DB como Gerente/Administrador, mas o login retorna 401:
+
+### 7.1 Conferir o usuário no banco
+
+```sql
+SELECT id, name, email, role, status, LEFT(password_hash, 20) AS hash_preview
+FROM users
+WHERE email = 'financeiro@tvdoutor.com.br';
+```
+
+- **Nenhum resultado** → email inexistente ou diferente (espaços, maiúsculas).
+- **status ≠ 'active'** → o login exige `status = 'active'`.
+- **hash_preview não começa com `$2a$` ou `$2b$`** → hash não é bcrypt; a senha precisa ser definida pelo sistema.
+
+### 7.2 Possíveis causas
+
+| Causa | Como resolver |
+|-------|----------------|
+| `status` = 'inactive' | `UPDATE users SET status = 'active' WHERE email = '...';` |
+| Usuário criado manualmente com senha em texto puro | Senha deve ser bcrypt. Use o cadastro do sistema ou o script abaixo. |
+| Banco diferente (ex.: phpMyAdmin local vs. Vercel) | Confirme as variáveis `DB_*` na Vercel; o app usa o banco dessas variáveis. |
+| Senha digitada incorreta | Teste em ambiente local ou use a opção de redefinir senha. |
+
+### 7.3 Redefinir senha via SQL (bcrypt)
+
+Primeiro gere o hash (Node.js):
+
+```bash
+node -e "const bcrypt=require('bcryptjs'); bcrypt.hash('SUA_SENHA_AQUI', 10).then(h=>console.log(h));"
+```
+
+Depois no MySQL:
+
+```sql
+UPDATE users
+SET password_hash = 'COLE_O_HASH_GERADO_AQUI'
+WHERE email = 'financeiro@tvdoutor.com.br';
+```

@@ -1,7 +1,19 @@
-/* 
-  TVDControl
-  Este projeto usa Tailwind via CDN em `index.html`.
-  O arquivo existe para evitar 404 e permitir ajustes globais opcionais.
-*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-
+/* Custom scrollbar for cleaner look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}

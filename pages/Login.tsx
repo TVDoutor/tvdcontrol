@@ -7,7 +7,7 @@ const REMEMBER_EMAIL_KEY = 'tvdcontrol.login.email';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, register, isLoading, error } = useAuthStore();
+  const { login, register, isLoading, error, clearError } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -23,6 +23,10 @@ const Login: React.FC = () => {
   const [nameError, setNameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
 
   useEffect(() => {
     try {

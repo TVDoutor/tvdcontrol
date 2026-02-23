@@ -10,77 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    
-    <!-- Tailwind Config -->
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "primary": "#137fec",
-              "background-light": "#f6f7f8",
-              "background-dark": "#101922",
-              "surface-light": "#ffffff",
-              "surface-dark": "#1a2632",
-              "border-light": "#e7edf3",
-              "border-dark": "#2a3b4d",
-              "text-main-light": "#0d141b",
-              "text-main-dark": "#f0f4f8",
-              "text-sub-light": "#4c739a",
-              "text-sub-dark": "#8babc5",
-            },
-            fontFamily: {
-              "display": ["Inter", "sans-serif"]
-            },
-            borderRadius: {
-              "DEFAULT": "0.25rem", 
-              "lg": "0.5rem", 
-              "xl": "0.75rem", 
-              "full": "9999px"
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { transform: 'translateY(10px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
-              },
-              slideInRight: {
-                '0%': { transform: 'translateX(20px)', opacity: '0' },
-                '100%': { transform: 'translateX(0)', opacity: '1' },
-              }
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.5s ease-out forwards',
-              'slide-up': 'slideUp 0.5s ease-out forwards',
-              'slide-in-right': 'slideInRight 0.5s ease-out forwards',
-            }
-          },
-        },
-      }
-    </script>
-    <style>
-      /* Custom scrollbar for cleaner look */
-      ::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-          background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-          background-color: #cbd5e1;
-          border-radius: 20px;
-      }
-      .dark ::-webkit-scrollbar-thumb {
-          background-color: #475569;
-      }
-    </style>
   <script type="importmap">
 {
   "imports": {
@@ -92,7 +21,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-background-light dark:bg-background-dark font-display text-text-main-light dark:text-text-main-dark antialiased">
     <div id="root"></div>

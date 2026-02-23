@@ -3,20 +3,19 @@ import { query, queryOne } from '../db';
 import { hashPassword } from '../utils/password';
 import { generateUUID } from '../utils/uuid';
 import { authenticateUser } from '../utils/auth';
-import { canManageUsers } from '../utils/permissions';
+import { canListUsers, canManageUsers } from '../utils/permissions';
 
 export const usersRouter = Router();
 
 usersRouter.use(authenticateUser);
-usersRouter.use((req, res, next) => {
-  if (!canManageUsers(req.user?.role)) {
+
+// GET /users - Administrador e Gerente podem listar (Gerente para atribuição)
+usersRouter.get('/', (req, res, next) => {
+  if (!canListUsers(req.user?.role)) {
     return res.status(403).json({ error: 'Sem permissão para acessar usuários' });
   }
   next();
-});
-
-// GET /users
-usersRouter.get('/', async (_req, res, next) => {
+}, async (_req, res, next) => {
   try {
     const rows = await query(`SELECT * FROM users ORDER BY created_at DESC`);
     const users = rows.map((u: any) => {
@@ -34,8 +33,13 @@ usersRouter.get('/', async (_req, res, next) => {
   }
 });
 
-// GET /users/:id
-usersRouter.get('/:id', async (req, res, next) => {
+// GET /users/:id - Administrador e Gerente podem listar
+usersRouter.get('/:id', (req, res, next) => {
+  if (!canListUsers(req.user?.role)) {
+    return res.status(403).json({ error: 'Sem permissão para acessar usuários' });
+  }
+  next();
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = await queryOne(`SELECT * FROM users WHERE id = ?`, [id]);
@@ -54,8 +58,13 @@ usersRouter.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST /users
-usersRouter.post('/', async (req, res, next) => {
+// POST /users - apenas Administrador
+usersRouter.post('/', (req, res, next) => {
+  if (!canManageUsers(req.user?.role)) {
+    return res.status(403).json({ error: 'Sem permissão para gerenciar usuários' });
+  }
+  next();
+}, async (req, res, next) => {
   try {
     const { name, email, password, role, department, avatar, phone } = req.body;
 
@@ -139,8 +148,13 @@ usersRouter.post('/', async (req, res, next) => {
   }
 });
 
-// PUT /users/:id
-usersRouter.put('/:id', async (req, res, next) => {
+// PUT /users/:id - apenas Administrador
+usersRouter.put('/:id', (req, res, next) => {
+  if (!canManageUsers(req.user?.role)) {
+    return res.status(403).json({ error: 'Sem permissão para gerenciar usuários' });
+  }
+  next();
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, email, password, role, department, status, avatar, phone } = req.body;
@@ -258,8 +272,13 @@ usersRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-// DELETE /users/:id
-usersRouter.delete('/:id', async (req, res, next) => {
+// DELETE /users/:id - apenas Administrador
+usersRouter.delete('/:id', (req, res, next) => {
+  if (!canManageUsers(req.user?.role)) {
+    return res.status(403).json({ error: 'Sem permissão para gerenciar usuários' });
+  }
+  next();
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = await queryOne(`SELECT id FROM users WHERE id = ?`, [id]);

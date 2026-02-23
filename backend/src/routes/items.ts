@@ -447,9 +447,12 @@ itemsRouter.get('/:id/history', authenticateUser, async (req, res) => {
   }
 });
 
-// POST /items/:id/assign { userId }
+// POST /items/:id/assign { userId } - Administrador e Gerente
 itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
   try {
+    if (!canUpdate(req.user?.role)) {
+      return res.status(403).json({ error: 'Sem permissão para atribuir itens' });
+    }
     const id = String(req.params.id);
     const userId = req.body?.userId ? String(req.body.userId) : null;
     if (!userId) return res.status(400).json({ message: 'userId é obrigatório' });

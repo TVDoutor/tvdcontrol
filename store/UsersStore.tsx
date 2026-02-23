@@ -3,7 +3,7 @@ import type { User } from '../types';
 import { getUsersService, type CreateUserInput, type UpdateUserInput } from '../services/usersService';
 import { useAuthStore } from './AuthStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
-import { canManageUsers } from '../utils/permissions';
+import { canListUsers } from '../utils/permissions';
 
 type UsersStoreValue = {
   users: User[];
@@ -26,7 +26,7 @@ export function UsersStoreProvider({ children }: { children: React.ReactNode }) 
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!userId || !canManageUsers(user)) {
+    if (!userId || !canListUsers(user)) {
       setUsers([]);
       setError(null);
       setIsLoading(false);

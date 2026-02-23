@@ -11,6 +11,7 @@ type AuthStoreValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   login: (email: string, password?: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   updateProfile: (input: UpdateMeInput) => Promise<void>;
@@ -229,6 +230,10 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
     saveTokenToStorage(null);
   }, [service]);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   const value: AuthStoreValue = useMemo(
     () => ({
       user,
@@ -236,13 +241,14 @@ export function AuthStoreProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(user && token),
       isLoading,
       error,
+      clearError,
       login,
       register,
       updateProfile,
       changePassword,
       logout,
     }),
-    [user, token, isLoading, error, login, register, updateProfile, changePassword, logout]
+    [user, token, isLoading, error, clearError, login, register, updateProfile, changePassword, logout]
   );
 
   return <AuthStoreContext.Provider value={value}>{children}</AuthStoreContext.Provider>;
