@@ -99,18 +99,19 @@ function parseCookieHeader(header: string | undefined): Record<string, string> {
 
 function setRefreshCookie(res: any, refreshToken: string) {
   const isProd = process.env.NODE_ENV === 'production';
+  // path: '/' para que o cookie seja enviado em /api/auth/* (Vercel rewrites)
   res.cookie(config.jwt.refreshCookieName, refreshToken, {
     httpOnly: true,
     sameSite: 'lax',
     secure: isProd,
-    path: '/auth',
+    path: '/',
     maxAge: config.jwt.refreshExpiresInSeconds * 1000,
   });
 }
 
 function clearRefreshCookie(res: any) {
   const isProd = process.env.NODE_ENV === 'production';
-  res.clearCookie(config.jwt.refreshCookieName, { path: '/auth', sameSite: 'lax', secure: isProd });
+  res.clearCookie(config.jwt.refreshCookieName, { path: '/', sameSite: 'lax', secure: isProd });
 }
 
 // GET /auth/me
@@ -348,7 +349,10 @@ authRouter.post('/login', async (req, res, next) => {
       ...(refreshEnabled && !isProd ? { refreshToken } : {}),
     });
   } catch (e) {
-    console.error('[auth/login] error:', e);
+    const err = e as any;
+    console.error('[auth/login] error:', err?.message ?? err);
+    if (err?.code) console.error('[auth/login] code:', err.code);
+    if (err?.sqlMessage) console.error('[auth/login] sql:', err.sqlMessage);
     next(e);
   }
 });
