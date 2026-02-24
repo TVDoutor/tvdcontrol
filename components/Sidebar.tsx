@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/AuthStore';
-import { isSystemUser, isAdministrator } from '../utils/permissions';
+import { isSystemUser, isAdministrator, canListUsers } from '../utils/permissions';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -132,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
                 </Link>
               )}
               
-              {isAdministrator(user) && (
+              {canListUsers(user) && (
                 <Link 
                   to="/users"
                     onClick={handleLinkClick}
