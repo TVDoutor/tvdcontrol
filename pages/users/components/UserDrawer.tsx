@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { InventoryItem, User, UserRole } from '../../../types';
 import { canManageUsers } from '../../../utils/permissions';
-import { USER_ROLES, ROLE_LABELS } from '../constants';
+import { USER_ROLES, ROLE_LABELS, JOB_TITLES } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 import { ContactItem, InventoryItemCard } from './UserDrawerParts';
 import { getUsersService } from '../../../services/usersService';
@@ -392,12 +392,15 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-text-sub-light font-semibold">Cargo | Função</label>
-                        <input
-                          name="jobTitle"
+                        <Dropdown
                           value={editFormData.jobTitle || ''}
-                          onChange={onInputChange}
-                          className="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                          placeholder="Ex.: Desenvolvedor, Customer Success"
+                          placeholder="Selecione o cargo"
+                          options={[
+                            { value: '', label: 'Nenhum', icon: 'work' },
+                            ...JOB_TITLES.map((jt) => ({ value: jt, label: jt, icon: 'work' })),
+                          ]}
+                          buttonClassName="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none flex items-center justify-between"
+                          onValueChange={(v) => emitChange('jobTitle', v)}
                         />
                       </div>
                       <div className="flex flex-col gap-1">

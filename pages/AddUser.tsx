@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
-import { DEPARTMENTS, USER_ROLES, ROLE_LABELS } from './users/constants';
+import { DEPARTMENTS, USER_ROLES, ROLE_LABELS, JOB_TITLES } from './users/constants';
 
 const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
 
@@ -201,12 +201,18 @@ const AddUser: React.FC = () => {
 
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-text-main-light dark:text-slate-200">Cargo | Função</span>
-                <input
+                <select
                   value={form.jobTitle}
                   onChange={(e) => setField('jobTitle', e.target.value)}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
-                  placeholder="Ex.: Desenvolvedor, Customer Success, Analista"
-                />
+                >
+                  <option value="">Selecione o cargo</option>
+                  {JOB_TITLES.map((jt) => (
+                    <option key={jt} value={jt}>
+                      {jt}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="flex flex-col gap-2">

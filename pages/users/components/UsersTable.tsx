@@ -5,7 +5,7 @@ import { Dropdown } from '../../../components/Dropdown';
 
 interface UsersTableProps {
   departments: string[];
-  uniqueJobTitles: string[];
+  jobTitles: string[];
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   departmentFilter: string;
@@ -27,7 +27,7 @@ interface UsersTableProps {
 
 const UsersTable: React.FC<UsersTableProps> = ({
   departments,
-  uniqueJobTitles,
+  jobTitles,
   searchQuery,
   onSearchQueryChange,
   departmentFilter,
@@ -98,7 +98,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             placeholder="Todos Cargos"
             options={[
               { value: '', label: 'Todos Cargos', icon: 'work' },
-              ...uniqueJobTitles.map((jt) => ({ value: jt, label: jt, icon: 'work' })),
+              ...jobTitles.map((jt) => ({ value: jt, label: jt, icon: 'work' })),
             ]}
             buttonClassName="w-full py-2.5 px-3 bg-background-light dark:bg-background-dark border border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main-light dark:text-text-main-dark cursor-pointer text-left flex items-center justify-between"
             onValueChange={onJobTitleFilterChange}

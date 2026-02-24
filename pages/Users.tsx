@@ -5,7 +5,7 @@ import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { useAuthStore } from '../store/AuthStore';
 import { canUpdate, canDelete } from '../utils/permissions';
-import { DEPARTMENTS } from './users/constants';
+import { DEPARTMENTS, JOB_TITLES } from './users/constants';
 import { getFriendlyErrorMessage } from '../services/httpClient';
 import UserDeleteModal from './users/components/UserDeleteModal';
 import UsersTable from './users/components/UsersTable';
@@ -60,10 +60,6 @@ const Users: React.FC = () => {
     }
   }, [selectedUser?.id]);
 
-  const uniqueJobTitles = useMemo(
-    () => Array.from(new Set(users.map((u) => u.jobTitle).filter((v): v is string => Boolean(v?.trim())))),
-    [users]
-  );
 
   const filteredUsers = useMemo(
     () =>
@@ -331,7 +327,7 @@ const Users: React.FC = () => {
       <div className="flex flex-1 p-4 md:p-8 gap-8 overflow-hidden h-full">
         <UsersTable
           departments={DEPARTMENTS}
-          uniqueJobTitles={uniqueJobTitles}
+          jobTitles={JOB_TITLES}
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
           departmentFilter={departmentFilter}
