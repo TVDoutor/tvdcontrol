@@ -119,6 +119,7 @@ itemsRouter.get('/', authenticateUser, async (_req, res, next) => {
         purchase_price AS purchasePrice,
         warranty_end AS warrantyEnd,
         location, specs, notes,
+        phone_number AS phoneNumber,
         photo_main AS photoMain,
         created_at AS createdAt,
         updated_at AS updatedAt
@@ -172,6 +173,7 @@ itemsRouter.get('/:id', authenticateUser, async (req, res, next) => {
         purchase_price AS purchasePrice,
         warranty_end AS warrantyEnd,
         location, specs, notes,
+        phone_number AS phoneNumber,
         photo_main AS photoMain,
         created_at AS createdAt,
         updated_at AS updatedAt
@@ -228,6 +230,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
     const location = body.location ?? null;
     const specs = body.specs ?? null;
     const notes = body.notes ?? null;
+    const phoneNumber = body.phoneNumber?.trim() || null;
 
     if (!category || !model || !serialNumber || !purchaseDate || !warrantyEnd) {
       return res
@@ -240,8 +243,8 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
       await conn.query(
         `
         INSERT INTO inventory_items
-        (id, category, type, manufacturer, name, model, serial_number, asset_tag, sku, icon, photo_main, status, assigned_to_user_id, purchase_date, purchase_price, warranty_end, location, specs, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, category, type, manufacturer, name, model, serial_number, asset_tag, sku, icon, photo_main, status, assigned_to_user_id, purchase_date, purchase_price, warranty_end, location, specs, notes, phone_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           id,
@@ -263,6 +266,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           location,
           specs,
           notes,
+          phoneNumber,
         ]
       );
 
@@ -290,7 +294,8 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           purchase_date AS purchaseDate,
           purchase_price AS purchasePrice,
           warranty_end AS warrantyEnd,
-          location, specs, notes
+          location, specs, notes,
+          phone_number AS phoneNumber
         FROM inventory_items
         WHERE id = ?
         `,
@@ -350,6 +355,7 @@ itemsRouter.put('/:id', authenticateUser, async (req, res, next) => {
       ['location', patch.location],
       ['specs', patch.specs],
       ['notes', patch.notes],
+      ['phone_number', patch.phoneNumber],
     ] as Array<[string, any]>;
     const fields = candidates.filter(([, v]) => v !== undefined) as Array<[string, any]>;
 
@@ -385,7 +391,8 @@ itemsRouter.put('/:id', authenticateUser, async (req, res, next) => {
           purchase_date AS purchaseDate,
           purchase_price AS purchasePrice,
           warranty_end AS warrantyEnd,
-          location, specs, notes
+          location, specs, notes,
+          phone_number AS phoneNumber
         FROM inventory_items
         WHERE id = ?
         `,

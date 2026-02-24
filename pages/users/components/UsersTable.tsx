@@ -17,7 +17,7 @@ interface UsersTableProps {
   isLoading: boolean;
   users: User[];
   selectedUserId?: string;
-  canUpdate: boolean;
+  canUpdateUser: (user: User) => boolean;
   canDelete: boolean;
   onNewUser: () => void;
   onUserClick: (user: User) => void;
@@ -39,7 +39,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
   isLoading,
   users,
   selectedUserId,
-  canUpdate,
+  canUpdateUser,
   canDelete,
   onNewUser,
   onUserClick,
@@ -225,7 +225,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                         >
                           <span className="material-symbols-outlined text-[20px]">visibility</span>
                         </button>
-                        {canUpdate && (
+                        {canUpdateUser(user) && (
                           <button
                             onClick={(e) => onEditClick(e, user)}
                             className="text-text-sub-light dark:text-text-sub-dark hover:text-primary p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"

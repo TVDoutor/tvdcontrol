@@ -40,9 +40,21 @@ export function canDelete(user: User | null | undefined): boolean {
   return isSystemUser(user);
 }
 
-// Verifica permissão para gerenciar usuários (apenas Administrador)
+// Verifica permissão para gerenciar usuários (apenas Administrador - criar/editar/excluir qualquer)
 export function canManageUsers(user: User | null | undefined): boolean {
   return isAdministrator(user);
+}
+
+// Gerente pode criar e editar usuários Produto/Inventário (mas não Admin/Gerente)
+export function canCreateProductUser(user: User | null | undefined): boolean {
+  return isSystemUser(user);
+}
+
+// Gerente pode editar usuário alvo apenas se for Produto/Inventário
+export function canEditProductUser(currentUser: User | null | undefined, targetUser: User | null | undefined): boolean {
+  if (!currentUser || !targetUser) return false;
+  if (isAdministrator(currentUser)) return true;
+  return currentUser.role === 'Gerente' && targetUser.role === 'Usuario';
 }
 
 // Verifica permissão para listar usuários (Administrador e Gerente - para atribuição)

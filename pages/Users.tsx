@@ -4,7 +4,7 @@ import type { User, UserRole } from '../types';
 import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { useAuthStore } from '../store/AuthStore';
-import { canUpdate, canDelete } from '../utils/permissions';
+import { canManageUsers, canEditProductUser } from '../utils/permissions';
 import { DEPARTMENTS } from './users/constants';
 import { useCargoStore } from '../store/CargoStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
@@ -288,8 +288,8 @@ const Users: React.FC = () => {
       })();
   };
 
-  const allowUpdate = canUpdate(currentUser);
-  const allowDelete = canDelete(currentUser);
+  const canUpdateUser = (target: User) => canManageUsers(currentUser) || canEditProductUser(currentUser, target);
+  const allowDelete = canManageUsers(currentUser);
   const assignedItems = selectedUser
     ? items.filter((i) => i.assignedTo === selectedUser.id)
     : [];
@@ -341,7 +341,7 @@ const Users: React.FC = () => {
           isLoading={isLoading}
           users={filteredUsers}
           selectedUserId={selectedUser?.id}
-          canUpdate={allowUpdate}
+          canUpdateUser={canUpdateUser}
           canDelete={allowDelete}
           onNewUser={handleNewUser}
           onUserClick={handleUserClick}
@@ -354,6 +354,7 @@ const Users: React.FC = () => {
           jobTitles={jobTitles}
           selectedUser={selectedUser}
           currentUser={currentUser}
+          canEditUser={selectedUser ? canUpdateUser(selectedUser) : false}
           isEditing={isEditing}
           isCreating={isCreating}
           editFormData={editFormData}

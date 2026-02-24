@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { InventoryItem, User, UserRole } from '../../../types';
-import { canManageUsers } from '../../../utils/permissions';
+import { canManageUsers, canEditProductUser } from '../../../utils/permissions';
 import { USER_ROLES, ROLE_LABELS } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 import { ContactItem, InventoryItemCard } from './UserDrawerParts';
@@ -13,6 +13,7 @@ interface UserDrawerProps {
   jobTitles: string[];
   selectedUser: User | null;
   currentUser: User | null | undefined;
+  canEditUser: boolean;
   isEditing: boolean;
   isCreating: boolean;
   editFormData: (Partial<User> & { password?: string; confirmPassword?: string });
@@ -77,6 +78,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
   jobTitles,
   selectedUser,
   currentUser,
+  canEditUser,
   isEditing,
   isCreating,
   editFormData,
@@ -272,11 +274,9 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                     ) : (
                       <input
                         name="role"
-                        value={(editFormData.role as UserRole | undefined) ?? selectedUser.role}
-                        onChange={onInputChange}
-                        className="text-center text-sm bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-slate-700 dark:text-slate-300 focus:ring-primary focus:border-primary outline-none"
-                        placeholder="Cargo"
-                        disabled
+                        value={ROLE_LABELS[(editFormData.role as UserRole) ?? selectedUser.role] ?? (editFormData.role ?? selectedUser.role)}
+                        readOnly
+                        className="text-center text-sm bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-slate-700 dark:text-slate-300 cursor-not-allowed"
                       />
                     )}
 
@@ -332,12 +332,14 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                     </>
                   ) : (
                     <>
-                      <button
-                        onClick={onStartEditing}
-                        className="flex-1 py-2.5 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
-                      >
-                        Editar Perfil
-                      </button>
+                      {canEditUser && (
+                        <button
+                          onClick={onStartEditing}
+                          className="flex-1 py-2.5 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                        >
+                          Editar Perfil
+                        </button>
+                      )}
                       <button className="flex items-center justify-center p-2.5 rounded-lg border border-border-light dark:border-border-dark hover:bg-background-light transition-colors text-text-sub-light">
                         <span className="material-symbols-outlined text-[20px]">more_horiz</span>
                       </button>
@@ -362,7 +364,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                           name="email"
                           value={editFormData.email || ''}
                           onChange={onInputChange}
-                          disabled={!canManageUsers(currentUser)}
+                          disabled={!canManageUsers(currentUser) && !(selectedUser && canEditProductUser(currentUser, selectedUser))}
                           className={`w-full text-sm bg-white dark:bg-slate-800 border rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none ${
                             errors.email
                               ? 'border-red-500 focus:ring-2 focus:ring-red-200'
@@ -540,7 +542,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
               {extraContent ? <div>{extraContent}</div> : null}
             </div>
 
-            {!isCreating && canManageUsers(currentUser) && (
+            {!isCreating && (canManageUsers(currentUser) || (selectedUser && canEditProductUser(currentUser, selectedUser))) && (
               <div className="p-4 border-t border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-center">
                 <button
                   onClick={onToggleStatus}

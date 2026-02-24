@@ -153,6 +153,28 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
             </div>
             {errors.serialNumber && <p className="text-red-500 text-xs mt-1 font-medium">{errors.serialNumber}</p>}
           </label>
+          {normalizedCategory === 'celulares' && formData.type === 'smartphone' && (
+            <label className="flex flex-col flex-1 md:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: '555ms' }}>
+              <p className="text-text-main-light dark:text-slate-200 text-sm font-medium leading-normal pb-2">
+                Número do Telefone (DDD + 9 dígitos)
+              </p>
+              <div className="relative">
+                <input
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={onChange}
+                  className={`${getInputClass('phoneNumber')} pl-12`}
+                  placeholder="Ex: 11 98346-3999"
+                  type="text"
+                  inputMode="tel"
+                />
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-text-sub-light">
+                  <span className="material-symbols-outlined text-[20px]">phone_android</span>
+                </div>
+              </div>
+              {errors.phoneNumber && <p className="text-red-500 text-xs mt-1 font-medium">{errors.phoneNumber}</p>}
+            </label>
+          )}
           <div className="flex flex-col flex-1 md:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: '560ms' }}>
             <PhotoUpload
               value={formData.photoMain}

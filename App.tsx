@@ -100,8 +100,8 @@ const App: React.FC = () => {
                   <Route path="/" element={<Login />} />
                   <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
                   <Route path="/inventory" element={<Protected><Inventory /></Protected>} />
-                  <Route path="/users" element={<RequireRole roles={['Administrador']}><Users /></RequireRole>} />
-                  <Route path="/users/add" element={<RequireRole roles={['Administrador']}><AddUser /></RequireRole>} />
+                  <Route path="/users" element={<RequireRole roles={['Administrador', 'Gerente']}><Users /></RequireRole>} />
+                  <Route path="/users/add" element={<RequireRole roles={['Administrador', 'Gerente']}><AddUser /></RequireRole>} />
                   <Route path="/categories" element={<RequireRole roles={['Administrador', 'Gerente']}><Categories /></RequireRole>} />
                   <Route path="/company-settings" element={<RequireRole roles={['Administrador', 'Gerente']}><CompanySettings /></RequireRole>} />
                   <Route path="/profile" element={<Protected><Profile /></Protected>} />

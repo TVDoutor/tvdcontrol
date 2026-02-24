@@ -62,7 +62,11 @@ const AddItem: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }) as AddItemFormData);
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value } as AddItemFormData;
+      if (name === 'type' && value !== 'smartphone') next.phoneNumber = '';
+      return next;
+    });
 
     if (errors[name]) {
       setErrors(prev => {
@@ -78,7 +82,7 @@ const AddItem: React.FC = () => {
   };
 
   const handleCategorySelect = (value: string) => {
-    setFormData((prev) => ({ ...prev, category: value, type: '' }));
+    setFormData((prev) => ({ ...prev, category: value, type: '', phoneNumber: '' }));
 
     if (errors.category) {
       setErrors(prev => {
@@ -96,6 +100,12 @@ const AddItem: React.FC = () => {
     }
   };
 
+  const isSmartphone = (formData.category || '').toLowerCase().replace(/\s/g, '') === 'celulares' && formData.type === 'smartphone';
+  const validatePhone = (phone: string): boolean => {
+    const digits = phone.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 11 && /^\d+$/.test(digits);
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -103,6 +113,9 @@ const AddItem: React.FC = () => {
     if (!formData.type) newErrors.type = "Selecione o tipo do item.";
     if (!formData.name.trim()) newErrors.name = "O nome/modelo é obrigatório.";
     if (!formData.serialNumber.trim()) newErrors.serialNumber = "O número de série é obrigatório.";
+    if (isSmartphone && formData.phoneNumber.trim() && !validatePhone(formData.phoneNumber)) {
+      newErrors.phoneNumber = "Informe o telefone com DDD e 9 dígitos (ex: 11 98346-3999).";
+    }
 
     if (!formData.purchaseDate) newErrors.purchaseDate = "A data de compra é obrigatória.";
     if (!formData.warrantyEnd) newErrors.warrantyEnd = "O fim da garantia é obrigatório.";
@@ -154,6 +167,7 @@ const AddItem: React.FC = () => {
           warrantyEnd: formData.warrantyEnd,
           notes: formData.notes || '',
           photoMain: formData.photoMain || undefined,
+          phoneNumber: formData.phoneNumber?.trim() || undefined,
         });
         setCreatedId(created.id);
         setIsSaving(false);

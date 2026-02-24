@@ -3,7 +3,7 @@ import { query, queryOne } from '../db';
 import { hashPassword } from '../utils/password';
 import { generateUUID } from '../utils/uuid';
 import { authenticateUser } from '../utils/auth';
-import { canListUsers, canManageUsers } from '../utils/permissions';
+import { canListUsers, canManageUsers, canCreateProductUser, canEditProductUser } from '../utils/permissions';
 import { generateTermoItensUsuarioPdf } from '../utils/pdfGenerator';
 
 export const usersRouter = Router();
@@ -138,12 +138,17 @@ usersRouter.get('/:id', (req, res, next) => {
   }
 });
 
-// POST /users - apenas Administrador
+// POST /users - Administrador (qualquer role) ou Gerente (apenas Usuario)
 usersRouter.post('/', (req, res, next) => {
-  if (!canManageUsers(req.user?.role)) {
-    return res.status(403).json({ error: 'Sem permissão para gerenciar usuários' });
+  if (canManageUsers(req.user?.role)) return next();
+  if (canCreateProductUser(req.user?.role)) {
+    const role = req.body?.role;
+    if (role && role !== 'Usuario') {
+      return res.status(403).json({ error: 'Gerente só pode cadastrar usuários Produto/Inventário' });
+    }
+    return next();
   }
-  next();
+  return res.status(403).json({ error: 'Sem permissão para cadastrar usuários' });
 }, async (req, res, next) => {
   try {
     const { name, email, password, role, department, jobTitle, avatar, phone, cpf } = req.body;
@@ -186,10 +191,14 @@ usersRouter.post('/', (req, res, next) => {
       return res.status(409).json({ error: 'Este email já está cadastrado' });
     }
 
-    // Validar role
+    // Validar role - Gerente só pode criar Usuario
     let finalRole = 'Usuario';
-    if (role && (role === 'Administrador' || role === 'Gerente' || role === 'Usuario')) {
-      finalRole = role;
+    if (canManageUsers(req.user?.role)) {
+      if (role && (role === 'Administrador' || role === 'Gerente' || role === 'Usuario')) {
+        finalRole = role;
+      }
+    } else if (canCreateProductUser(req.user?.role)) {
+      finalRole = 'Usuario';
     }
 
     let passwordHash: string;
@@ -236,13 +245,8 @@ usersRouter.post('/', (req, res, next) => {
   }
 });
 
-// PUT /users/:id - apenas Administrador
-usersRouter.put('/:id', (req, res, next) => {
-  if (!canManageUsers(req.user?.role)) {
-    return res.status(403).json({ error: 'Sem permissão para gerenciar usuários' });
-  }
-  next();
-}, async (req, res, next) => {
+// PUT /users/:id - Administrador (qualquer) ou Gerente (apenas Usuario)
+usersRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, email, password, role, department, jobTitle, status, avatar, phone, cpf } = req.body;
@@ -250,6 +254,10 @@ usersRouter.put('/:id', (req, res, next) => {
     const existing = await queryOne(`SELECT * FROM users WHERE id = ?`, [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    if (!canManageUsers(req.user?.role) && !canEditProductUser(req.user?.role, existing.role)) {
+      return res.status(403).json({ error: 'Sem permissão para editar este usuário' });
     }
 
     const updates: string[] = [];
@@ -290,8 +298,8 @@ usersRouter.put('/:id', (req, res, next) => {
       values.push(passwordHash);
     }
 
-    // Apenas Administrador pode alterar role
-    if (role !== undefined) {
+    // Apenas Administrador pode alterar role (Gerente não pode)
+    if (role !== undefined && canManageUsers(req.user?.role)) {
       if (role !== 'Administrador' && role !== 'Gerente' && role !== 'Usuario') {
         return res.status(400).json({ error: 'Role inválida' });
       }

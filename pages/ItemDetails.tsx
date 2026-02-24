@@ -124,11 +124,13 @@ const ItemDetails: React.FC = () => {
         manufacturer: '',
         model: '',
         category: '',
+        type: '',
         location: '',
         price: '',
         purchaseDate: '',
         warrantyEnd: '',
-        description: ''
+        description: '',
+        phoneNumber: ''
     });
 
     // Helper to convert ISO date to yyyy-MM-dd format for date inputs
@@ -146,11 +148,13 @@ const ItemDetails: React.FC = () => {
             manufacturer: item.manufacturer || '',
             model: item.model || '',
             category: item.category || '',
+            type: item.type || '',
             location: item.location || '',
             price: item.purchasePrice ? `R$ ${item.purchasePrice.toLocaleString('pt-BR')}` : '',
             purchaseDate,
             warrantyEnd: toDateInputFormat(item.warrantyEnd) || defaultWarrantyEnd,
             description: item.specs || item.notes || '',
+            phoneNumber: item.phoneNumber || '',
         });
     }, [item?.id]);
 
@@ -256,6 +260,7 @@ const ItemDetails: React.FC = () => {
             warrantyEnd: formData.warrantyEnd,
             purchasePrice: Number.isFinite(priceNumber as number) ? (priceNumber as number) : undefined,
             specs: formData.description,
+            phoneNumber: formData.phoneNumber?.trim() || undefined,
         });
 
         setIsEditing(false);
@@ -745,6 +750,16 @@ const ItemDetails: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
+                                    {(formData.category || '').toLowerCase().replace(/\s/g, '') === 'celulares' && formData.type === 'smartphone' && (
+                                        <InfoField
+                                            label="Número do Telefone"
+                                            value={formData.phoneNumber}
+                                            name="phoneNumber"
+                                            icon="phone_android"
+                                            isEditing={isEditing}
+                                            onChange={handleInputChange}
+                                        />
+                                    )}
                                     <InfoField
                                         label="Localização Física"
                                         value={formData.location}

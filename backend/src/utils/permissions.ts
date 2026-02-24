@@ -38,9 +38,21 @@ export function canDelete(role: string | null | undefined): boolean {
   return isSystemUser(role);
 }
 
-// Verifica permissão para gerenciar usuários (apenas Administrador)
+// Verifica permissão para gerenciar usuários (apenas Administrador - full control)
 export function canManageUsers(role: string | null | undefined): boolean {
   return isAdministrator(role);
+}
+
+// Gerente pode criar usuários Produto/Inventário (role Usuario)
+export function canCreateProductUser(role: string | null | undefined): boolean {
+  return isSystemUser(role);
+}
+
+// Gerente pode editar usuário Produto/Inventário (targetRole deve ser Usuario)
+export function canEditProductUser(actorRole: string | null | undefined, targetRole: string | null | undefined): boolean {
+  if (!actorRole || !targetRole) return false;
+  if (actorRole === 'Administrador') return true;
+  return actorRole === 'Gerente' && targetRole === 'Usuario';
 }
 
 // Verifica permissão para listar usuários (Administrador e Gerente - para atribuição)

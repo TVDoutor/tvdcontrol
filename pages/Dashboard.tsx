@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useInventoryStore } from '../store/InventoryStore';
+import { useUsersStore } from '../store/UsersStore';
 import type { InventoryItem } from '../types';
 import { DropdownField } from '../components/Dropdown';
 import { getCategoryIcon } from './addItem/constants';
@@ -9,6 +10,7 @@ import { getCategoryIcon } from './addItem/constants';
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { items, isLoading, error, refresh } = useInventoryStore();
+  const { users } = useUsersStore();
 
   // Sincroniza com o restante do sistema ao visitar o Dashboard
   useEffect(() => {
@@ -51,6 +53,13 @@ const Dashboard: React.FC = () => {
             (item.sku || '').toLowerCase().includes(lowerQuery) ||
             (item.category || '').toLowerCase().includes(lowerQuery) ||
             (item.location || '').toLowerCase().includes(lowerQuery) ||
+            (() => {
+              const qd = searchQuery.replace(/\D/g, '');
+              if (qd.length > 0) {
+                return (item.phoneNumber || '').replace(/\D/g, '').includes(qd);
+              }
+              return (item.phoneNumber || '').toLowerCase().includes(lowerQuery);
+            })() ||
             getStatusLabel(item.status).toLowerCase().includes(lowerQuery);
 
         // Category Filter Logic
@@ -66,19 +75,17 @@ const Dashboard: React.FC = () => {
 
   // Export to CSV Function
   const handleExport = () => {
-      // Define headers
-      const headers = ["Item", "Modelo/Desc", "SKU", "Categoria", "Status"];
-      
-      // Convert data to CSV format
+      const headers = ["Item", "Modelo/Desc", "SKU", "Categoria", "Status", "Alocado a"];
       const csvContent = [
-          headers.join(","), // Header row
+          headers.join(","),
           ...filteredItems.map(item => [
               `"${item.name || item.model || ''}"`,
               `"${item.desc || item.manufacturer || ''}"`,
               item.sku || '',
               item.category,
-              getStatusLabel(item.status)
-          ].join(",")) // Data rows
+              getStatusLabel(item.assignedTo ? 'in_use' : item.status),
+              `"${item.assignedTo ? getUserName(item.assignedTo) : ''}"`
+          ].join(","))
       ].join("\n");
 
       // Create download link
@@ -98,6 +105,9 @@ const Dashboard: React.FC = () => {
       setSearchQuery('');
       setIsFilterOpen(false);
   };
+
+  const getUserName = (userId: string | undefined) =>
+    userId ? users.find((u) => u.id === userId)?.name ?? '–' : '–';
 
   // Pagination
   const ITEMS_PER_PAGE = 8;
@@ -253,7 +263,7 @@ const Dashboard: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-white dark:bg-surface-dark text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow" 
-                  placeholder="Buscar por nome, modelo, SKU, categoria ou status..." 
+                  placeholder="Buscar por nome, modelo, SKU, categoria, telefone ou status..." 
                   type="text"
                />
              </div>
@@ -286,13 +296,14 @@ const Dashboard: React.FC = () => {
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">SKU</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Categoria</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Status</th>
+                     <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Alocado a</th>
                      <th className="p-4 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider text-right">Ações</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-border-light dark:divide-border-dark">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={5} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                        <td colSpan={6} className="p-12 text-center text-slate-500 dark:text-slate-400">
                           Carregando inventário...
                         </td>
                       </tr>
@@ -311,13 +322,14 @@ const Dashboard: React.FC = () => {
                                 sku={item.sku || '-'} 
                                 category={item.category} 
                                 status={item.assignedTo ? 'in_use' : item.status}
+                                assignedUserName={item.assignedTo ? getUserName(item.assignedTo) : undefined}
                                 index={startIndex + index}
                                 onOpen={(id) => navigate(`/item/${id}`)}
                             />
                         ))
                     ) : (
                         <tr>
-                            <td colSpan={5} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                            <td colSpan={6} className="p-12 text-center text-slate-500 dark:text-slate-400">
                                 <div className="flex flex-col items-center justify-center gap-3">
                                     <div className="size-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                         <span className="material-symbols-outlined text-[32px] text-slate-400">search_off</span>
@@ -415,11 +427,12 @@ type TableRowProps = {
   sku: string;
   category: string;
   status: InventoryItem['status'];
+  assignedUserName?: string;
   index: number;
   onOpen: (id: string) => void;
 };
 
-const TableRow: React.FC<TableRowProps> = ({ id, icon, name, desc, sku, category, status, index, onOpen }) => {
+const TableRow: React.FC<TableRowProps> = ({ id, icon, name, desc, sku, category, status, assignedUserName, index, onOpen }) => {
     const statusMeta =
         status === 'available'
             ? { dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', label: 'Disponível' }
@@ -455,6 +468,9 @@ const TableRow: React.FC<TableRowProps> = ({ id, icon, name, desc, sku, category
                     {statusMeta.label}
                 </span>
             </div>
+        </td>
+        <td className="p-4 text-sm text-slate-600 dark:text-slate-400">
+            {assignedUserName ?? '–'}
         </td>
         <td className="p-4 text-right">
              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

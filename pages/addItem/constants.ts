@@ -4,6 +4,7 @@ export type AddItemFormData = {
   category: string;
   type: string;
   manufacturer: string;
+  phoneNumber: string;
   name: string;
   serialNumber: string;
   assetTag: string;
@@ -35,6 +36,7 @@ export const INITIAL_FORM_DATA: AddItemFormData = {
   category: '',
   type: '',
   manufacturer: '',
+  phoneNumber: '',
   name: '',
   serialNumber: '',
   assetTag: '',

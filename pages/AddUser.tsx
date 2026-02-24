@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
+import { useAuthStore } from '../store/AuthStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
 import { DEPARTMENTS, USER_ROLES, ROLE_LABELS } from './users/constants';
 import { useCargoStore } from '../store/CargoStore';
@@ -23,6 +24,7 @@ type FormState = {
 
 const AddUser: React.FC = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
   const { createUser } = useUsersStore();
   const { items, assignItem } = useInventoryStore();
   const { jobTitles } = useCargoStore();
@@ -72,9 +74,10 @@ const AddUser: React.FC = () => {
     });
   };
 
+  const effectiveRole = currentUser?.role === 'Gerente' ? 'Usuario' : form.role;
   const validate = () => {
     const nextErrors: Record<string, string> = {};
-    const requiresPassword = form.role === 'Administrador' || form.role === 'Gerente';
+    const requiresPassword = effectiveRole === 'Administrador' || effectiveRole === 'Gerente';
     if (!form.name.trim()) nextErrors.name = 'Nome é obrigatório';
     if (form.name.trim().length < 3) nextErrors.name = 'Nome deve ter pelo menos 3 caracteres';
     if (!form.email.trim()) nextErrors.email = 'Email é obrigatório';
@@ -96,7 +99,7 @@ const AddUser: React.FC = () => {
     setIsSaving(true);
     void (async () => {
       try {
-        const requiresPassword = form.role === 'Administrador' || form.role === 'Gerente';
+        const requiresPassword = effectiveRole === 'Administrador' || effectiveRole === 'Gerente';
         const created = await createUser({
           name: form.name.trim(),
           email: form.email.trim(),
@@ -104,7 +107,7 @@ const AddUser: React.FC = () => {
           cpf: form.cpf.trim() ? form.cpf.replace(/\D/g, '') : undefined,
           jobTitle: form.jobTitle.trim() || undefined,
           password: requiresPassword ? form.password : undefined,
-          role: form.role as any,
+          role: effectiveRole as any,
           department: form.department,
           avatar: DEFAULT_AVATAR,
           status: 'active',
@@ -237,9 +240,10 @@ const AddUser: React.FC = () => {
                 <select
                   value={form.role}
                   onChange={(e) => setField('role', e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
+                  disabled={currentUser?.role === 'Gerente'}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {USER_ROLES.map((role) => (
+                  {(currentUser?.role === 'Gerente' ? ['Usuario'] : USER_ROLES).map((role) => (
                     <option key={role} value={role}>
                       {role} — {ROLE_LABELS[role]}
                     </option>
@@ -252,7 +256,7 @@ const AddUser: React.FC = () => {
 
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-text-main-light dark:text-slate-200">
-                  Senha {(form.role === 'Administrador' || form.role === 'Gerente') ? '*' : '(opcional)'}
+                  Senha {(effectiveRole === 'Administrador' || effectiveRole === 'Gerente') ? '*' : '(opcional)'}
                 </span>
                 <input
                   value={form.password}
@@ -268,7 +272,7 @@ const AddUser: React.FC = () => {
 
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-text-main-light dark:text-slate-200">
-                  Confirmar Senha {(form.role === 'Administrador' || form.role === 'Gerente') ? '*' : '(opcional)'}
+                  Confirmar Senha {(effectiveRole === 'Administrador' || effectiveRole === 'Gerente') ? '*' : '(opcional)'}
                 </span>
                 <input
                   value={form.confirmPassword}

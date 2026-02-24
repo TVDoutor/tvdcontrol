@@ -41,7 +41,14 @@ const Inventory: React.FC = () => {
             (item.desc || item.specs || '').toLowerCase().includes(lowerQuery) ||
             (item.sku || '').toLowerCase().includes(lowerQuery) ||
             (item.serialNumber || '').toLowerCase().includes(lowerQuery) ||
-            (item.location || '').toLowerCase().includes(lowerQuery);
+            (item.location || '').toLowerCase().includes(lowerQuery) ||
+            (() => {
+              const qd = searchQuery.replace(/\D/g, '');
+              if (qd.length > 0) {
+                return (item.phoneNumber || '').replace(/\D/g, '').includes(qd);
+              }
+              return (item.phoneNumber || '').toLowerCase().includes(lowerQuery);
+            })()
 
         const matchesCategory = activeFilters.category === 'all' || item.category === activeFilters.category;
         const matchesStatus = activeFilters.status === 'all' || item.status === activeFilters.status;
@@ -167,7 +174,7 @@ const Inventory: React.FC = () => {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-background-light dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm transition-all placeholder:text-slate-400" 
-                            placeholder="Buscar por nome, SKU ou localização..." 
+                            placeholder="Buscar por nome, SKU, telefone ou localização..." 
                             type="text"
                         />
                     </div>
