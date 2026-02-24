@@ -14,7 +14,7 @@ export interface InventoryService {
   remove(id: string): Promise<void>;
   history(id: string): Promise<InventoryHistoryEvent[]>;
   assign(id: string, userId: string, options?: { signatureBase64?: string }): Promise<{ documentId?: string } | void>;
-  returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }): Promise<void>;
+  returnItem(id: string, options?: { returnPhoto?: string; returnPhoto2?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }): Promise<void>;
 }
 
 function createId(): string {
@@ -116,9 +116,10 @@ function createHttpInventoryService(http: HttpClient): InventoryService {
       });
       return res ?? undefined;
     },
-    returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }) {
+    returnItem(id: string, options?: { returnPhoto?: string; returnPhoto2?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }) {
       return http.post<void>(`/items/${encodeURIComponent(id)}/return`, {
         returnPhoto: options?.returnPhoto ?? null,
+        returnPhoto2: options?.returnPhoto2 ?? null,
         returnNotes: options?.returnNotes ?? null,
         returnItems: options?.returnItems ?? null,
         signatureBase64: options?.signatureBase64 ?? null,

@@ -14,6 +14,7 @@ export type AddItemFormData = {
   warrantyEnd: string;
   notes: string;
   photoMain: string;
+  photoMain2: string;
 };
 
 export type CategoryOption = {
@@ -46,6 +47,7 @@ export const INITIAL_FORM_DATA: AddItemFormData = {
   warrantyEnd: '',
   notes: '',
   photoMain: '',
+  photoMain2: '',
 };
 
 export function getCategoryIcon(category: string): string {

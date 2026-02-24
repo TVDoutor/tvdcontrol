@@ -13,6 +13,7 @@ interface AddItemFormProps {
   getInputClass: (fieldName: string) => string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   onPhotoChange: (photoMain: string) => void;
+  onPhoto2Change?: (photoMain2: string) => void;
   onCategorySelect: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -27,6 +28,7 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
   getInputClass,
   onChange,
   onPhotoChange,
+  onPhoto2Change,
   onCategorySelect,
   onCancel,
   onSave,
@@ -179,9 +181,18 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
             <PhotoUpload
               value={formData.photoMain}
               onChange={onPhotoChange}
-              label="Foto do equipamento"
-              placeholder="Clique para adicionar foto do equipamento"
-              helperText="Opcional. Registre o estado do equipamento no momento do cadastro."
+              label="Foto do equipamento (1)"
+              placeholder="Clique para adicionar 1ª foto"
+              helperText="Opcional. Até 2 fotos. Registre o estado do equipamento no momento do cadastro."
+            />
+          </div>
+          <div className="flex flex-col flex-1 md:col-span-2 animate-slide-up opacity-0" style={{ animationDelay: '565ms' }}>
+            <PhotoUpload
+              value={formData.photoMain2}
+              onChange={(v) => onPhoto2Change?.(v)}
+              label="Foto do equipamento (2)"
+              placeholder="Clique para adicionar 2ª foto"
+              helperText="Opcional."
             />
           </div>
         </div>

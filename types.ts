@@ -42,6 +42,7 @@ export interface InventoryItem {
     specs?: string;
     notes?: string;
     photoMain?: string;
+    photoMain2?: string;
     /** Número de telefone (Celulares > Smartphone) - ex: 11 98346-3999 */
     phoneNumber?: string;
 }
@@ -53,6 +54,7 @@ export type InventoryHistoryEvent = {
     title: string;
     desc: string;
     returnPhoto?: string;
+    returnPhoto2?: string;
     returnNotes?: string;
     returnItems?: string;
 };

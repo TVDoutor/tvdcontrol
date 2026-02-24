@@ -56,6 +56,7 @@ async function addHistoryEvent(conn: PoolConnection, params: {
   title: string;
   description?: string | null;
   returnPhoto?: string | null;
+  returnPhoto2?: string | null;
   returnNotes?: string | null;
   returnItems?: string | null;
 }) {
@@ -68,12 +69,17 @@ async function addHistoryEvent(conn: PoolConnection, params: {
     title,
     description = null,
     returnPhoto = null,
+    returnPhoto2 = null,
     returnNotes = null,
     returnItems = null,
   } = params;
 
-  const hasReturnData = returnPhoto || returnNotes || returnItems;
+  const hasReturnData = returnPhoto || returnPhoto2 || returnNotes || returnItems;
   const fullInsert = `
+    INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description, return_photo, return_photo_2, return_notes, return_items)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  const fullInsertLegacy = `
     INSERT INTO inventory_history (id, item_id, actor_user_id, event_type, color, title, description, return_photo, return_notes, return_items)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
@@ -84,7 +90,15 @@ async function addHistoryEvent(conn: PoolConnection, params: {
 
   try {
     if (hasReturnData) {
-      await conn.query(fullInsert, [id, itemId, actorUserId, eventType, color, title, description, returnPhoto, returnNotes, returnItems]);
+      try {
+        await conn.query(fullInsert, [id, itemId, actorUserId, eventType, color, title, description, returnPhoto, returnPhoto2, returnNotes, returnItems]);
+      } catch (e2: any) {
+        if (e2?.code === 'ER_BAD_FIELD_ERROR') {
+          await conn.query(fullInsertLegacy, [id, itemId, actorUserId, eventType, color, title, description, returnPhoto, returnNotes, returnItems]);
+        } else {
+          throw e2;
+        }
+      }
     } else {
       await conn.query(minimalInsert, [id, itemId, actorUserId, eventType, color, title, description]);
     }
@@ -121,6 +135,7 @@ itemsRouter.get('/', authenticateUser, async (_req, res, next) => {
         location, specs, notes,
         phone_number AS phoneNumber,
         photo_main AS photoMain,
+        photo_main_2 AS photoMain2,
         created_at AS createdAt,
         updated_at AS updatedAt
       FROM inventory_items
@@ -175,6 +190,7 @@ itemsRouter.get('/:id', authenticateUser, async (req, res, next) => {
         location, specs, notes,
         phone_number AS phoneNumber,
         photo_main AS photoMain,
+        photo_main_2 AS photoMain2,
         created_at AS createdAt,
         updated_at AS updatedAt
       FROM inventory_items
@@ -222,6 +238,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
     // Tag de patrimônio é gerada automaticamente no backend.
     const icon = body.icon ?? null;
     const photoMain = body.photoMain ?? null;
+    const photoMain2 = body.photoMain2 ?? null;
     const status = body.status ?? 'available';
     const assignedTo = body.assignedTo ?? null;
     const purchaseDate = body.purchaseDate;
@@ -243,8 +260,8 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
       await conn.query(
         `
         INSERT INTO inventory_items
-        (id, category, type, manufacturer, name, model, serial_number, asset_tag, sku, icon, photo_main, status, assigned_to_user_id, purchase_date, purchase_price, warranty_end, location, specs, notes, phone_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, category, type, manufacturer, name, model, serial_number, asset_tag, sku, icon, photo_main, photo_main_2, status, assigned_to_user_id, purchase_date, purchase_price, warranty_end, location, specs, notes, phone_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           id,
@@ -258,6 +275,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           generatedAssetTag,
           icon,
           photoMain,
+          photoMain2,
           status,
           assignedTo,
           purchaseDate,
@@ -289,6 +307,7 @@ itemsRouter.post('/', authenticateUser, async (req, res, next) => {
           sku,
           icon,
           photo_main AS photoMain,
+          photo_main_2 AS photoMain2,
           status,
           assigned_to_user_id AS assignedTo,
           purchase_date AS purchaseDate,
@@ -347,6 +366,7 @@ itemsRouter.put('/:id', authenticateUser, async (req, res, next) => {
       ['sku', patch.sku],
       ['icon', patch.icon],
       ['photo_main', patch.photoMain],
+      ['photo_main_2', patch.photoMain2],
       ['status', patch.status],
       ['assigned_to_user_id', patch.assignedTo],
       ['purchase_date', patch.purchaseDate],
@@ -386,6 +406,7 @@ itemsRouter.put('/:id', authenticateUser, async (req, res, next) => {
           sku,
           icon,
           photo_main AS photoMain,
+          photo_main_2 AS photoMain2,
           status,
           assigned_to_user_id AS assignedTo,
           purchase_date AS purchaseDate,
@@ -435,6 +456,13 @@ itemsRouter.get('/:id/history', authenticateUser, async (req, res) => {
     SELECT id, color,
       DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS \`date\`,
       title, description AS \`desc\`,
+      return_photo AS returnPhoto, return_photo_2 AS returnPhoto2, return_notes AS returnNotes, return_items AS returnItems
+    FROM inventory_history WHERE item_id = ? ORDER BY created_at DESC
+  `;
+  const fullQueryLegacy = `
+    SELECT id, color,
+      DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS \`date\`,
+      title, description AS \`desc\`,
       return_photo AS returnPhoto, return_notes AS returnNotes, return_items AS returnItems
     FROM inventory_history WHERE item_id = ? ORDER BY created_at DESC
   `;
@@ -453,15 +481,24 @@ itemsRouter.get('/:id/history', authenticateUser, async (req, res) => {
     } catch (err: any) {
       if (err?.code === 'ER_BAD_FIELD_ERROR' || err?.code === 'ER_NO_SUCH_TABLE') {
         try {
-          const [r] = await pool.query(minimalQuery, [id]);
+          const [r] = await pool.query(fullQueryLegacy, [id]);
           rows = ((r as any[]) || []).map((row) => ({
             ...row,
-            returnPhoto: null,
-            returnNotes: null,
-            returnItems: null,
+            returnPhoto2: null,
           }));
         } catch {
-          rows = [];
+          try {
+            const [r] = await pool.query(minimalQuery, [id]);
+            rows = ((r as any[]) || []).map((row) => ({
+              ...row,
+              returnPhoto: null,
+              returnPhoto2: null,
+              returnNotes: null,
+              returnItems: null,
+            }));
+          } catch {
+            rows = [];
+          }
         }
       } else {
         throw err;
@@ -585,6 +622,7 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
   try {
     const id = String(req.params.id);
     const returnPhoto = req.body?.returnPhoto ?? null;
+    const returnPhoto2 = req.body?.returnPhoto2 ?? null;
     const returnNotes = req.body?.returnNotes ?? null;
     const returnItemsRaw = req.body?.returnItems;
     const returnItems = Array.isArray(returnItemsRaw) ? returnItemsRaw : null;
@@ -625,6 +663,7 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
         title: 'Devolvido ao estoque',
         description: 'Item retornado ao estoque. Status alterado para Disponível.',
         returnPhoto,
+        returnPhoto2,
         returnNotes,
         returnItems: returnItems ? JSON.stringify(returnItems) : null,
       });

@@ -72,6 +72,7 @@ const ItemDetails: React.FC = () => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [returnPhoto, setReturnPhoto] = useState('');
+    const [returnPhoto2, setReturnPhoto2] = useState('');
     const [returnNotes, setReturnNotes] = useState('');
     const [returnItemsSelected, setReturnItemsSelected] = useState<string[]>([]);
     const [isReturning, setIsReturning] = useState(false);
@@ -131,7 +132,8 @@ const ItemDetails: React.FC = () => {
         warrantyEnd: '',
         description: '',
         phoneNumber: '',
-        photoMain: ''
+        photoMain: '',
+        photoMain2: ''
     });
 
     // Helper to convert ISO date to yyyy-MM-dd format for date inputs
@@ -157,6 +159,7 @@ const ItemDetails: React.FC = () => {
             description: item.specs || item.notes || '',
             phoneNumber: item.phoneNumber || '',
             photoMain: item.photoMain || '',
+            photoMain2: item.photoMain2 || '',
         });
     }, [item?.id]);
 
@@ -264,6 +267,7 @@ const ItemDetails: React.FC = () => {
             specs: formData.description,
             phoneNumber: formData.phoneNumber?.trim() || undefined,
             photoMain: formData.photoMain || undefined,
+            photoMain2: formData.photoMain2 || undefined,
         });
 
         setIsEditing(false);
@@ -272,6 +276,7 @@ const ItemDetails: React.FC = () => {
     const handleOpenReturnModal = () => {
         if (!item || !item.assignedTo) return;
         setReturnPhoto('');
+        setReturnPhoto2('');
         setReturnNotes('');
         const items = getReturnItemsForItem(item);
         // Inicia com todos marcados; o usuário desmarca os que estão faltando
@@ -294,6 +299,7 @@ const ItemDetails: React.FC = () => {
         setIsReturning(true);
         void returnItem(item.id, {
             returnPhoto: returnPhoto || undefined,
+            returnPhoto2: returnPhoto2 || undefined,
             returnNotes: returnNotes.trim() || undefined,
             returnItems: selectedLabels.length > 0 ? selectedLabels : undefined,
             signatureBase64: returnSignature || undefined,
@@ -301,6 +307,7 @@ const ItemDetails: React.FC = () => {
             .then(() => {
                 setShowReturnModal(false);
                 setReturnPhoto('');
+                setReturnPhoto2('');
                 setReturnNotes('');
                 setReturnItemsSelected([]);
                 setReturnSignature('');
@@ -475,9 +482,16 @@ const ItemDetails: React.FC = () => {
                             <PhotoUpload
                                 value={returnPhoto}
                                 onChange={setReturnPhoto}
-                                label="Foto do equipamento (na devolução)"
-                                placeholder="Clique para adicionar foto"
-                                helperText="Opcional. Recomendado para documentar o estado no retorno."
+                                label="Foto do equipamento 1 (na devolução)"
+                                placeholder="Clique para adicionar 1ª foto"
+                                helperText="Opcional. Até 2 fotos. Recomendado para documentar o estado no retorno."
+                            />
+                            <PhotoUpload
+                                value={returnPhoto2}
+                                onChange={setReturnPhoto2}
+                                label="Foto do equipamento 2 (na devolução)"
+                                placeholder="Clique para adicionar 2ª foto"
+                                helperText="Opcional."
                             />
                             <SignaturePad
                                 value={returnSignature}
@@ -695,42 +709,54 @@ const ItemDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column (2/3) */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
-                        {/* Foto do Equipamento - referência para comparação na devolução */}
+                        {/* Fotos do Equipamento - referência para comparação na devolução (até 2) */}
                         {isEditing ? (
                             <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
                                 <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
-                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Foto de referência para comparação na devolução.</p>
+                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Fotos do Equipamento</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Até 2 fotos de referência para comparação na devolução.</p>
                                 </div>
-                                <div className="p-6">
+                                <div className="p-6 space-y-4">
                                     <PhotoUpload
                                         value={formData.photoMain}
                                         onChange={(v) => setFormData((prev) => ({ ...prev, photoMain: v }))}
-                                        label=""
-                                        placeholder="Clique para adicionar ou trocar foto"
-                                        helperText="Esta imagem servirá como referência para verificar o estado do equipamento na devolução."
+                                        label="Foto 1"
+                                        placeholder="Clique para adicionar ou trocar 1ª foto"
+                                        helperText=""
+                                    />
+                                    <PhotoUpload
+                                        value={formData.photoMain2}
+                                        onChange={(v) => setFormData((prev) => ({ ...prev, photoMain2: v }))}
+                                        label="Foto 2"
+                                        placeholder="Clique para adicionar ou trocar 2ª foto"
+                                        helperText="Opcional."
                                     />
                                 </div>
                             </div>
-                        ) : item?.photoMain ? (
+                        ) : (item?.photoMain || item?.photoMain2) ? (
                             <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
                                 <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
-                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
+                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Fotos do Equipamento</h3>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Referência para comparação na devolução.</p>
                                 </div>
-                                <div className="p-6">
-                                    <img src={item.photoMain} alt="Equipamento" className="rounded-lg max-w-full max-h-[280px] object-contain border border-slate-100 dark:border-slate-700" />
+                                <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {item?.photoMain && (
+                                        <img src={item.photoMain} alt="Equipamento 1" className="rounded-lg w-full max-h-[280px] object-contain border border-slate-100 dark:border-slate-700" />
+                                    )}
+                                    {item?.photoMain2 && (
+                                        <img src={item.photoMain2} alt="Equipamento 2" className="rounded-lg w-full max-h-[280px] object-contain border border-slate-100 dark:border-slate-700" />
+                                    )}
                                 </div>
                             </div>
                         ) : allowEdit ? (
                             <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
                                 <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
-                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
+                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Fotos do Equipamento</h3>
                                 </div>
                                 <div className="p-6 flex flex-col items-center justify-center gap-3 py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
                                     <span className="material-symbols-outlined text-5xl text-slate-400">add_a_photo</span>
                                     <p className="text-sm text-slate-500 dark:text-slate-400 text-center">Nenhuma foto cadastrada.</p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Clique em &quot;Editar Item&quot; para adicionar uma foto de referência para a devolução.</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Clique em &quot;Editar Item&quot; para adicionar até 2 fotos de referência para a devolução.</p>
                                 </div>
                             </div>
                         ) : null}
@@ -974,7 +1000,7 @@ const InfoField = ({ label, value, icon, isEditing, name, onChange }: any) => (
     </div>
 );
 
-const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnNotes, returnItems, documentId, documentType }: any) => {
+const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnPhoto2, returnNotes, returnItems, documentId, documentType }: any) => {
     let bgClass = 'bg-slate-300 dark:bg-slate-600';
     if (color === 'primary') bgClass = 'bg-primary';
     if (color === 'success') bgClass = 'bg-emerald-500';
@@ -1027,10 +1053,19 @@ const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnNotes, ret
                     <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 whitespace-pre-wrap">{returnNotes}</p>
                 </div>
             )}
-            {returnPhoto && (
-                <div className="mt-2">
-                    <img src={returnPhoto} alt="Foto na devolução" className="rounded-lg max-w-[180px] max-h-[120px] object-cover border border-slate-200 dark:border-slate-700" />
-                    <p className="text-xs text-slate-400 mt-1">Foto registrada na devolução</p>
+            {(returnPhoto || returnPhoto2) && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                    {returnPhoto && (
+                        <div>
+                            <img src={returnPhoto} alt="Foto 1 na devolução" className="rounded-lg max-w-[180px] max-h-[120px] object-cover border border-slate-200 dark:border-slate-700" />
+                        </div>
+                    )}
+                    {returnPhoto2 && (
+                        <div>
+                            <img src={returnPhoto2} alt="Foto 2 na devolução" className="rounded-lg max-w-[180px] max-h-[120px] object-cover border border-slate-200 dark:border-slate-700" />
+                        </div>
+                    )}
+                    <p className="text-xs text-slate-400 w-full mt-1">Foto(s) registrada(s) na devolução</p>
                 </div>
             )}
         </div>

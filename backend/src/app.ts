@@ -90,8 +90,10 @@ async function ensureItemPhotoColumns(): Promise<void> {
     }
   };
   await ensureColumn('inventory_items', 'photo_main', `ALTER TABLE inventory_items ADD COLUMN photo_main TEXT NULL`);
+  await ensureColumn('inventory_items', 'photo_main_2', `ALTER TABLE inventory_items ADD COLUMN photo_main_2 TEXT NULL`);
   await ensureColumn('inventory_items', 'phone_number', `ALTER TABLE inventory_items ADD COLUMN phone_number VARCHAR(20) NULL`);
   await ensureColumn('inventory_history', 'return_photo', `ALTER TABLE inventory_history ADD COLUMN return_photo TEXT NULL`);
+  await ensureColumn('inventory_history', 'return_photo_2', `ALTER TABLE inventory_history ADD COLUMN return_photo_2 TEXT NULL`);
   await ensureColumn('inventory_history', 'return_notes', `ALTER TABLE inventory_history ADD COLUMN return_notes TEXT NULL`);
   await ensureColumn('inventory_history', 'return_items', `ALTER TABLE inventory_history ADD COLUMN return_items TEXT NULL`);
 }
