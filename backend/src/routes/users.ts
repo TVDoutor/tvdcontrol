@@ -4,6 +4,7 @@ import { hashPassword } from '../utils/password';
 import { generateUUID } from '../utils/uuid';
 import { authenticateUser } from '../utils/auth';
 import { canListUsers, canManageUsers } from '../utils/permissions';
+import { generateTermoItensUsuarioPdf } from '../utils/pdfGenerator';
 
 export const usersRouter = Router();
 
@@ -28,6 +29,73 @@ usersRouter.get('/', (req, res, next) => {
       };
     });
     res.json(users);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /users/:id/termo-itens - Download PDF com itens associados ao usuário
+usersRouter.get('/:id/termo-itens', (req, res, next) => {
+  if (!canListUsers(req.user?.role)) {
+    return res.status(403).json({ error: 'Sem permissão' });
+  }
+  next();
+}, async (req, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const user = await queryOne(`SELECT name, department, cpf FROM users WHERE id = ?`, [id]);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const company = await queryOne(
+      `SELECT name, legal_name AS legalName, address, city, state, zip, cnpj FROM company_settings WHERE id = 'default'`
+    );
+
+    const itemRows = await query(
+      `SELECT category, type, manufacturer, name, model, serial_number AS serialNumber, asset_tag AS assetTag, notes
+       FROM inventory_items WHERE assigned_to_user_id = ? ORDER BY category, model`,
+      [id]
+    );
+    const items = (Array.isArray(itemRows) ? itemRows : []).map((row: any) => ({
+      category: row.category || 'Equipamento',
+      type: row.type || '',
+      manufacturer: row.manufacturer || '–',
+      model: row.model || row.name || '–',
+      serialNumber: row.serialNumber || '–',
+      assetTag: row.assetTag ?? null,
+      notes: row.notes ?? null,
+    }));
+
+    const now = new Date().toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const pdfBuffer = await generateTermoItensUsuarioPdf({
+      company: {
+        name: company?.name || 'Empresa',
+        legalName: company?.legalName ?? null,
+        address: company?.address ?? null,
+        city: company?.city ?? null,
+        state: company?.state ?? null,
+        zip: company?.zip ?? null,
+        cnpj: company?.cnpj ?? null,
+      },
+      user: {
+        name: user.name,
+        department: user.department || 'Geral',
+        cpf: user.cpf ?? null,
+      },
+      items,
+      date: now,
+    });
+
+    const safeName = (user.name || 'usuario').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').slice(0, 40);
+    const filename = `termo-itens-${safeName}-${now.replace(/\//g, '-')}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
   } catch (e) {
     next(e);
   }

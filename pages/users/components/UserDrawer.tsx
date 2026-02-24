@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { InventoryItem, User, UserRole } from '../../../types';
 import { canManageUsers } from '../../../utils/permissions';
 import { USER_ROLES, ROLE_LABELS } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 import { ContactItem, InventoryItemCard } from './UserDrawerParts';
+import { getUsersService } from '../../../services/usersService';
 
 type FieldErrors = Record<string, string>;
 
@@ -32,6 +33,43 @@ function formatCpf(cpf: string): string {
   if (d.length !== 11) return cpf;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
+
+const UserDrawerDownloadTermoButton: React.FC<{ userId: string; userName: string }> = ({ userId, userName }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const handleDownload = () => {
+    setIsDownloading(true);
+    const svc = getUsersService();
+    const safeName = (userName || 'usuario').replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-').slice(0, 30);
+    const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    void svc
+      .downloadTermoItens(userId, `termo-itens-${safeName}-${date}.pdf`)
+      .catch(() => alert('Não foi possível baixar o termo. Tente novamente.'))
+      .finally(() => setIsDownloading(false));
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleDownload}
+      disabled={isDownloading}
+      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+    >
+      {isDownloading ? (
+        <>
+          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          Gerando PDF...
+        </>
+      ) : (
+        <>
+          <span className="material-symbols-outlined text-[20px]">download</span>
+          Baixar termo com itens
+        </>
+      )}
+    </button>
+  );
+};
 
 const UserDrawer: React.FC<UserDrawerProps> = ({
   departments,
@@ -449,6 +487,21 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       <p className="text-sm text-slate-500">Nenhum item atribuído.</p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {!isEditing && !isCreating && selectedUser && (
+                <div>
+                  <h3 className="text-xs uppercase font-bold text-text-sub-light dark:text-text-sub-dark mb-3 tracking-wider flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">article</span>
+                    Termo de Responsabilidade
+                  </h3>
+                  <div className="p-4 rounded-xl bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark">
+                    <p className="text-sm text-text-sub-light dark:text-text-sub-dark mb-3">
+                      Baixe o termo com a relação dos equipamentos associados a este usuário.
+                    </p>
+                    <UserDrawerDownloadTermoButton userId={selectedUser.id} userName={selectedUser.name} />
+                  </div>
                 </div>
               )}
 

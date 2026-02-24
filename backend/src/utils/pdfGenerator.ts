@@ -58,6 +58,13 @@ export type DevolucaoData = {
   signatureBase64?: string | null;
 };
 
+export type TermoItensUsuarioData = {
+  company: CompanyData;
+  user: UserData;
+  items: ItemData[];
+  date: string;
+};
+
 function buildCompanyLine(company: CompanyData): string {
   const parts: string[] = [];
   if (company.legalName) parts.push(company.legalName);
@@ -196,6 +203,58 @@ export function generateDevolucaoPdf(data: DevolucaoData): Promise<Buffer> {
     } else {
       doc.text('__________________________________________');
     }
+    doc.text(data.user.name);
+
+    doc.end();
+  });
+}
+
+export function generateTermoItensUsuarioPdf(data: TermoItensUsuarioData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    const companyLine = buildCompanyLine(data.company);
+    doc.fontSize(11).text(companyLine, { align: 'justify' });
+    doc.moveDown(1);
+
+    doc.fontSize(12).font('Helvetica-Bold').text(
+      'TERMO DE RESPONSABILIDADE — RELAÇÃO DE EQUIPAMENTOS CORPORATIVOS',
+      { align: 'center' }
+    );
+    doc.font('Helvetica').fontSize(11);
+    doc.moveDown(1);
+
+    const userCpf = data.user.cpf ? formatCpf(data.user.cpf) : '–';
+    doc.text(
+      `A empresa ${data.company.name || 'acima indicada'}, declara que o(a) colaborador(a) ${data.user.name}, ` +
+      `ocupante do cargo de ${data.user.department}, portador(a) do CPF nº ${userCpf}, possui sob sua responsabilidade os seguintes equipamentos corporativos:`,
+      { align: 'justify' }
+    );
+    doc.moveDown(1);
+
+    data.items.forEach((item, i) => {
+      doc.font('Helvetica-Bold').text(`${i + 1}. ${item.category} — ${item.model}`, { continued: false });
+      doc.font('Helvetica').fontSize(10);
+      doc.text(`   Marca: ${item.manufacturer || '–'} | Nº patrimônio/série: ${item.assetTag || item.serialNumber}`);
+      if (item.notes) doc.text(`   Observações: ${item.notes}`);
+      doc.fontSize(11).moveDown(0.5);
+    });
+
+    doc.moveDown(0.5);
+    doc.text(
+      'O(A) colaborador(a) assume total responsabilidade pelo uso adequado, conservação e devolução dos equipamentos acima, em conformidade com as políticas da empresa.',
+      { align: 'justify' }
+    );
+    doc.moveDown(2);
+    doc.text(`${data.company.city || 'Cidade'}, ${data.date}`);
+    doc.moveDown(1.5);
+    doc.text('__________________________________________');
+    doc.text(data.company.name || 'Empresa');
+    doc.moveDown(0.5);
     doc.text(data.user.name);
 
     doc.end();

@@ -68,6 +68,9 @@ export function getCategoryIcon(category: string): string {
     chip: 'sim_card',
     acessorios: 'headphones',
     acessorio: 'headphones',
+    headset: 'headset',
+    impressora: 'print',
+    impressoras: 'print',
   };
 
   return iconByCategory[normalized] || 'inventory_2';

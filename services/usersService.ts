@@ -2,6 +2,8 @@ import type { User } from '../types';
 import { HttpClient } from './httpClient';
 import { getApiBaseUrl } from './apiBaseUrl';
 
+const TOKEN_STORAGE_KEY = 'tvdcontrol.auth.token';
+
 export type CreateUserInput = Omit<User, 'id' | 'itemsCount'> & { itemsCount?: number; password?: string };
 export type UpdateUserInput = Partial<Omit<User, 'id'>> & { id: string; password?: string };
 
@@ -10,6 +12,7 @@ export interface UsersService {
   create(input: CreateUserInput): Promise<User>;
   update(input: UpdateUserInput): Promise<User>;
   remove(id: string): Promise<void>;
+  downloadTermoItens(userId: string, filename?: string): Promise<void>;
 }
 
 function createId(): string {
@@ -91,6 +94,9 @@ function createMockUsersService(): UsersService {
     async remove(id) {
       users = users.filter((u) => u.id !== id);
     },
+    async downloadTermoItens() {
+      // Mock: no-op
+    },
   };
 }
 
@@ -113,6 +119,23 @@ function createHttpUsersService(http: HttpClient): UsersService {
     },
     async remove(id) {
       await http.delete<void>(`/users/${encodeURIComponent(id)}`);
+    },
+    async downloadTermoItens(userId: string, filename?: string) {
+      const baseUrl = getApiBaseUrl() || '';
+      const url = `${baseUrl}/users/${encodeURIComponent(userId)}/termo-itens`;
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Falha ao baixar termo');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || `termo-itens-usuario.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
     },
   };
 }
