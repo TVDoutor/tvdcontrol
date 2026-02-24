@@ -77,6 +77,7 @@ const ItemDetails: React.FC = () => {
     const [isReturning, setIsReturning] = useState(false);
     const [selectedAssignUserId, setSelectedAssignUserId] = useState('');
     const [assignSignature, setAssignSignature] = useState('');
+    const [isAssigning, setIsAssigning] = useState(false);
     const [returnSignature, setReturnSignature] = useState('');
     const [dbCategories, setDbCategories] = useState<string[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -306,11 +307,11 @@ const ItemDetails: React.FC = () => {
 
     const returnItemsList = getReturnItemsForItem(item);
 
-    const handleAssignItem = (targetUserId?: string, signatureBase64?: string) => {
+    const handleAssignItem = async (targetUserId?: string, signatureBase64?: string) => {
         if (!item) return;
         const target = targetUserId ? users.find((u) => u.id === targetUserId) : undefined;
         if (!target) return;
-        void assignItem(item.id, target.id, signatureBase64 ? { signatureBase64 } : undefined);
+        return assignItem(item.id, target.id, signatureBase64 ? { signatureBase64 } : undefined);
     };
 
     const assignableUsers = users.filter((u) => u.status === 'active' && u.role === 'Usuario');
@@ -510,11 +511,11 @@ const ItemDetails: React.FC = () => {
 
             {/* Modal de Atribuição */}
             {showAssignModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setShowAssignModal(false)}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => !isAssigning && setShowAssignModal(false)}>
                     <div className="bg-white dark:bg-surface-dark rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-4 border-b border-border-light dark:border-border-dark">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Atribuir Usuário</h3>
-                            <button onClick={() => setShowAssignModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors">
+                            <button onClick={() => !isAssigning && setShowAssignModal(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors disabled:opacity-60" disabled={isAssigning}>
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
@@ -555,29 +556,55 @@ const ItemDetails: React.FC = () => {
                                     onChange={setAssignSignature}
                                     label="Assinatura do colaborador"
                                     placeholder="O colaborador deve assinar no quadro abaixo para receber o equipamento"
+                                    disabled={isAssigning}
                                 />
                             )}
                         </div>
 
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
                             <button
-                                onClick={() => setShowAssignModal(false)}
-                                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                onClick={() => !isAssigning && setShowAssignModal(false)}
+                                disabled={isAssigning}
+                                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-60"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={() => {
                                     if (!selectedAssignUserId) return;
-                                    handleAssignItem(selectedAssignUserId, assignSignature);
-                                    setShowAssignModal(false);
-                                    setSelectedAssignUserId('');
-                                    setAssignSignature('');
+                                    setIsAssigning(true);
+                                    void handleAssignItem(selectedAssignUserId, assignSignature)
+                                        .then((result) => {
+                                            const docId = result && typeof result === 'object' && result.documentId;
+                                            setShowAssignModal(false);
+                                            setSelectedAssignUserId('');
+                                            setAssignSignature('');
+                                            if (docId) {
+                                                const svc = getDocumentsService();
+                                                const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+                                                void svc.download(docId, `termo-recebimento-${date}.pdf`);
+                                            }
+                                        })
+                                        .catch((err) => {
+                                            const msg = err?.message || 'Não foi possível concluir a atribuição. Tente novamente.';
+                                            alert(msg);
+                                        })
+                                        .finally(() => setIsAssigning(false));
                                 }}
-                                disabled={!selectedAssignUserId}
-                                className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm text-sm font-bold"
+                                disabled={!selectedAssignUserId || isAssigning}
+                                className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm text-sm font-bold flex items-center gap-2"
                             >
-                                Confirmar Atribuição
+                                {isAssigning ? (
+                                    <>
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                        </svg>
+                                        Atribuindo...
+                                    </>
+                                ) : (
+                                    'Confirmar Atribuição'
+                                )}
                             </button>
                         </div>
                     </div>

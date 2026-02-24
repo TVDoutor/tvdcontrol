@@ -497,6 +497,7 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
       `SELECT name, legal_name AS legalName, address, city, state, zip, cnpj FROM company_settings WHERE id = 'default'`
     );
 
+    let assignDocumentId: string | null = null;
     await withTransaction(async (conn) => {
       await conn.query(
         `UPDATE inventory_items SET assigned_to_user_id = ?, status = 'in_use' WHERE id = ?`,
@@ -557,9 +558,15 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
          VALUES (?, ?, ?, 'recebimento', '', ?, NOW(), ?, ?)`,
         [docId, id, userId, pdfBase64, req.user?.id || null, historyId]
       );
+
+      assignDocumentId = docId;
     });
 
-    res.status(204).send();
+    if (assignDocumentId) {
+      res.status(200).json({ documentId: assignDocumentId });
+    } else {
+      res.status(204).send();
+    }
   } catch (e) {
     next(e);
   }

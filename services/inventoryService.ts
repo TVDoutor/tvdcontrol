@@ -13,7 +13,7 @@ export interface InventoryService {
   update(input: UpdateInventoryItemInput): Promise<InventoryItem>;
   remove(id: string): Promise<void>;
   history(id: string): Promise<InventoryHistoryEvent[]>;
-  assign(id: string, userId: string, options?: { signatureBase64?: string }): Promise<void>;
+  assign(id: string, userId: string, options?: { signatureBase64?: string }): Promise<{ documentId?: string } | void>;
   returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }): Promise<void>;
 }
 
@@ -61,6 +61,7 @@ function createMockInventoryService(): InventoryService {
       if (!item) throw new Error('Item not found');
       item.assignedTo = userId;
       item.status = 'in_use';
+      return undefined;
     },
     async     returnItem(id: string, _options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string }) {
       const item = items.find((i) => i.id === id);
@@ -108,11 +109,12 @@ function createHttpInventoryService(http: HttpClient): InventoryService {
     history(id: string) {
       return http.get<InventoryHistoryEvent[]>(`/items/${encodeURIComponent(id)}/history`);
     },
-    assign(id: string, userId: string, options?: { signatureBase64?: string }) {
-      return http.post<void>(`/items/${encodeURIComponent(id)}/assign`, {
+    async assign(id: string, userId: string, options?: { signatureBase64?: string }) {
+      const res = await http.post<{ documentId?: string } | void>(`/items/${encodeURIComponent(id)}/assign`, {
         userId,
         signatureBase64: options?.signatureBase64 ?? null,
       });
+      return res ?? undefined;
     },
     returnItem(id: string, options?: { returnPhoto?: string; returnNotes?: string; returnItems?: string[]; signatureBase64?: string }) {
       return http.post<void>(`/items/${encodeURIComponent(id)}/return`, {
