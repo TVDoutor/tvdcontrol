@@ -18,7 +18,12 @@ usersRouter.get('/', (req, res, next) => {
   next();
 }, async (_req, res, next) => {
   try {
-    const rows = await query(`SELECT * FROM users ORDER BY created_at DESC`);
+    const rows = await query(`
+      SELECT u.*,
+        (SELECT COUNT(*) FROM inventory_items WHERE assigned_to_user_id = u.id) AS itemsCount
+      FROM users u
+      ORDER BY u.created_at DESC
+    `);
     const users = rows.map((u: any) => {
       const { password_hash, job_title, ...user } = u;
       return {
@@ -26,7 +31,7 @@ usersRouter.get('/', (req, res, next) => {
         jobTitle: job_title ?? null,
         phone: user.phone ?? null,
         avatar: user.avatar || '',
-        itemsCount: 0, // TODO: calculate from inventory_items
+        itemsCount: Number(user.itemsCount ?? 0),
       };
     });
     res.json(users);
@@ -116,13 +121,17 @@ usersRouter.get('/:id', (req, res, next) => {
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
+    const itemsCountRow = await queryOne(
+      `SELECT COUNT(*) AS count FROM inventory_items WHERE assigned_to_user_id = ?`,
+      [id]
+    );
     const { password_hash, job_title, ...userResponse } = user;
     res.json({
       ...userResponse,
       jobTitle: job_title ?? null,
       phone: userResponse.phone ?? null,
       avatar: userResponse.avatar || '',
-      itemsCount: 0,
+      itemsCount: Number(itemsCountRow?.count ?? 0),
     });
   } catch (e) {
     next(e);
@@ -334,13 +343,17 @@ usersRouter.put('/:id', (req, res, next) => {
     }
 
     if (updates.length === 0) {
+      const itemsCountRow = await queryOne(
+        `SELECT COUNT(*) AS count FROM inventory_items WHERE assigned_to_user_id = ?`,
+        [id]
+      );
       const { password_hash, job_title: jt, ...userResponse } = existing;
       return res.json({
         ...userResponse,
         jobTitle: jt ?? null,
         phone: userResponse.phone ?? null,
         avatar: userResponse.avatar || '',
-        itemsCount: 0,
+        itemsCount: Number(itemsCountRow?.count ?? 0),
       });
     }
 
@@ -352,13 +365,17 @@ usersRouter.put('/:id', (req, res, next) => {
       return res.status(500).json({ error: 'Erro ao atualizar usuário' });
     }
 
+    const itemsCountRow = await queryOne(
+      `SELECT COUNT(*) AS count FROM inventory_items WHERE assigned_to_user_id = ?`,
+      [id]
+    );
     const { password_hash, job_title: jt, ...userResponse } = updated;
     res.json({
       ...userResponse,
       jobTitle: jt ?? null,
       phone: userResponse.phone ?? null,
       avatar: userResponse.avatar || '',
-      itemsCount: 0,
+      itemsCount: Number(itemsCountRow?.count ?? 0),
     });
   } catch (e) {
     next(e);

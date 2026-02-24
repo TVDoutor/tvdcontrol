@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useInventoryStore } from '../store/InventoryStore';
@@ -8,7 +8,12 @@ import { getCategoryIcon } from './addItem/constants';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { items, isLoading, error } = useInventoryStore();
+  const { items, isLoading, error, refresh } = useInventoryStore();
+
+  // Sincroniza com o restante do sistema ao visitar o Dashboard
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Filter States
@@ -39,7 +44,8 @@ const Dashboard: React.FC = () => {
         // Text Search Logic
         const lowerQuery = searchQuery.toLowerCase();
         const matchesSearch = 
-            (item.name || item.model || '').toLowerCase().includes(lowerQuery) ||
+            (item.name || '').toLowerCase().includes(lowerQuery) ||
+            (item.model || '').toLowerCase().includes(lowerQuery) ||
             (item.desc || item.specs || '').toLowerCase().includes(lowerQuery) ||
             (item.sku || '').toLowerCase().includes(lowerQuery) ||
             (item.category || '').toLowerCase().includes(lowerQuery) ||
@@ -280,7 +286,11 @@ const Dashboard: React.FC = () => {
                                 id={item.id}
                                 icon={getCategoryIcon(item.category)} 
                                 name={item.name || item.model} 
-                                desc={item.desc || item.manufacturer} 
+                                desc={
+                                  item.name
+                                    ? (item.model || item.manufacturer || item.desc)
+                                    : (item.manufacturer || item.desc)
+                                } 
                                 sku={item.sku || '-'} 
                                 category={item.category} 
                                 status={item.status}

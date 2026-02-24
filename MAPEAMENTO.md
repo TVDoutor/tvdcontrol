@@ -30,15 +30,18 @@
 - `pages/Dashboard.tsx` — KPIs, gráfico, filtros, export CSV, alerta estoque crítico.
 - `pages/Inventory.tsx` — Lista de itens, busca, filtros, paginação, exclusão.
 - `pages/ItemDetails.tsx` — Detalhe do item, edição, atribuir/devolver, histórico.
-- `pages/AddItem.tsx` — Formulário de adicionar item com validação.
+- `pages/AddItem.tsx` — Formulário de adicionar item com validação e upload de foto.
 - `pages/Users.tsx` — Lista de usuários, drawer de detalhes, editar/criar/excluir (Administrador).
 - `pages/AddUser.tsx` — Criar novo usuário (Administrador).
-- `pages/Categories.tsx` — CRUD de categorias (Administrador).
+- `pages/Categories.tsx` — CRUD de categorias (Administrador e Gerente).
+- `pages/CompanySettings.tsx` — Configurações da empresa (nome, razão social, CNPJ, endereço) para Termos de Responsabilidade.
 - `pages/Profile.tsx` — Perfil do usuário logado, editar dados, trocar senha.
 
 ### Componentes reutilizáveis
 - `components/Sidebar.tsx` — Menu lateral, perfil, logout, links por role.
 - `components/Dropdown.tsx` — Dropdown genérico.
+- `components/PhotoUpload.tsx` — Upload e compressão de fotos (cadastro, devolução).
+- `components/SignaturePad.tsx` — Canvas de assinatura para Termos de Responsabilidade.
 - `pages/users/components/` — `UsersTable`, `UserDrawer`, `UserDrawerParts`, `UserDeleteModal`, `AssignItemsModal`.
 - `pages/addItem/components/` — `AddItemForm`, `AddItemSuccessModal`, `AddItemCancelModal`.
 
@@ -52,15 +55,17 @@
 - `services/apiBaseUrl.ts` — URL base da API (VITE_API_BASE_URL / VITE_DEV_USE_LOCAL_BACKEND).
 - `services/httpClient.ts` — Cliente HTTP com token, refresh automático, tratamento de erros.
 - `services/authService.ts` — Login, registro, refresh, logout, me, updateMe, changePassword.
-- `services/inventoryService.ts` — CRUD itens, histórico, atribuir, devolver; fallback mock.
+- `services/inventoryService.ts` — CRUD itens, histórico, atribuir (com assinatura), devolver (com assinatura); fallback mock.
 - `services/usersService.ts` — CRUD usuários.
 - `services/categoriesService.ts` — Listar, criar, excluir categorias; fallback mock.
+- `services/companySettingsService.ts` — Obter e atualizar configurações da empresa.
+- `services/documentsService.ts` — Listar documentos do item e download de PDF.
 
 ### Utils
-- `utils/permissions.ts` — `isAdministrator`, `canCreate`, `canRead`, `canUpdate`, `canDelete`, `canManageUsers`.
+- `utils/permissions.ts` — `isAdministrator`, `isSystemUser`, `canCreate`, `canRead`, `canUpdate`, `canDelete`, `canManageUsers`, `canListUsers` (Admin e Gerente).
 
 ### Tipos
-- `types.ts`: interfaces `User`, `InventoryItem`, `InventoryHistoryEvent`, enum `ItemStatus`, `UserRole`.
+- `types.ts`: interfaces `User` (inclui `cpf` opcional), `InventoryItem`, `InventoryHistoryEvent`, enum `ItemStatus`, `UserRole`.
 
 ### Backend (`backend/`)
 - `backend/src/index.ts` — Inicia o servidor Express (porta 8080).
@@ -68,11 +73,13 @@
 - `backend/src/config.ts` — Porta, CORS, DB, JWT.
 - `backend/src/db.ts` — Pool MySQL.
 - `backend/src/routes/auth.ts` — Login, register, refresh, logout, me, updateMe, changePassword.
-- `backend/src/routes/users.ts` — CRUD usuários.
-- `backend/src/routes/items.ts` — CRUD itens, histórico, atribuir, devolver.
+- `backend/src/routes/users.ts` — CRUD usuários (GET acessível a Admin e Gerente para atribuição).
+- `backend/src/routes/items.ts` — CRUD itens, histórico, atribuir (gera PDF), devolver (gera PDF).
 - `backend/src/routes/categories.ts` — CRUD categorias.
-- `backend/src/utils/` — auth, password, permissions, token, uuid.
-- `backend/db/` — schema.sql, migrations, seed_admin.sql.
+- `backend/src/routes/companySettings.ts` — GET/PUT configurações da empresa.
+- `backend/src/routes/documents.ts` — Download de PDF dos termo de responsabilidade.
+- `backend/src/utils/` — auth, password, permissions, token, uuid, **pdfGenerator** (gera PDF de recebimento e devolução).
+- `backend/db/` — schema.sql, migrations (001–007: password_hash, roles, refresh_token, photos, return_notes, company_settings+documents, user_cpf), seed_admin.sql.
 
 ### Deploy Vercel
 - `api/[[...path]].ts` — Serverless handler que encaminha `/api/*` para o Express.
@@ -94,7 +101,8 @@
 | `/inventory` | Inventory | Autenticado |
 | `/users` | Users | Administrador |
 | `/users/add` | AddUser | Administrador |
-| `/categories` | Categories | Administrador |
+| `/categories` | Categories | Administrador, Gerente |
+| `/company-settings` | CompanySettings | Administrador, Gerente |
 | `/profile` | Profile | Autenticado |
 | `/item/:id` | ItemDetails | Autenticado |
 | `/items/add` | AddItem | Autenticado |
@@ -131,8 +139,16 @@
 - `PUT /items/:id` — Atualizar.
 - `DELETE /items/:id` — Excluir.
 - `GET /items/:id/history` — Histórico do item.
-- `POST /items/:id/assign` — Atribuir a usuário.
-- `POST /items/:id/return` — Devolver item.
+- `GET /items/:id/documents` — Lista PDFs de termos (recebimento/devolução) do item.
+- `POST /items/:id/assign` — Atribuir a usuário (`userId`, `signatureBase64` opcional); gera PDF de Termo de Recebimento.
+- `POST /items/:id/return` — Devolver item (`returnPhoto`, `returnNotes`, `returnItems`, `signatureBase64`); gera PDF de Termo de Devolução.
+
+### Configurações da Empresa (`/company-settings`)
+- `GET /company-settings` — Obter dados da empresa (Admin e Gerente).
+- `PUT /company-settings` — Atualizar (apenas Administrador).
+
+### Documentos (`/documents`)
+- `GET /documents/:id/download` — Download do PDF do termo (requer autenticação).
 
 ### Categorias (`/categories`)
 - `GET /categories` — Lista.
@@ -145,7 +161,13 @@
 ## Modelo de dados (conceitual)
 
 ### `User`
-- `id`, `name`, `email`, `role` (Administrador | Gerente | Usuario), `department`, `avatar`, `itemsCount`, `status` (active | inactive).
+- `id`, `name`, `email`, `role` (Administrador | Gerente | Usuario), `department`, `avatar`, `cpf` (opcional), `itemsCount`, `status` (active | inactive).
+
+### `CompanySettings`
+- `id`, `name`, `legalName`, `address`, `city`, `state`, `zip`, `cnpj` — dados usados nos Termos de Responsabilidade.
+
+### `InventoryDocument`
+- `id`, `itemId`, `userId`, `type` (recebimento | devolução), `filePath`, `pdfBase64`, `signedAt`, `actorUserId`, `historyEventId` — PDFs dos termos gerados.
 
 ### `InventoryItem`
 - `id`, `serialNumber`, `model`, `manufacturer`, `category`, `status` (available | in_use | maintenance | retired), `assignedTo`, `purchaseDate`, `warrantyEnd`, `location`, `specs`, `notes`, etc.
@@ -176,8 +198,10 @@
 
 ### 4) Detalhe do Item
 - Visualização/edição; atribuir usuário / devolver item.
-- Histórico completo (timeline).
-- Dados e histórico da API.
+- **Modal de atribuição**: seleção de usuário (Produto/Inventário), assinatura opcional; gera PDF de Termo de Recebimento.
+- **Modal de devolução**: checklist de itens, observação, foto opcional, assinatura opcional; gera PDF de Termo de Devolução.
+- **Histórico completo** (timeline) com downloads dos PDFs dos termos.
+- Histórico exibe nome do usuário (não UUID) em eventos de atribuição.
 
 ### 5) Adicionar Item
 - Formulário com validação; categorias da API ou mock.
@@ -192,9 +216,21 @@
 
 ### 7) Categorias
 - Lista, criar, excluir.
-- Restrito a Administrador.
+- Restrito a Administrador e Gerente.
 
-### 8) Perfil
+### 8) Configurações da Empresa
+- Nome, razão social, CNPJ, endereço (cidade, estado, CEP).
+- Dados usados nos Termos de Responsabilidade (PDF).
+- Administrador edita; Administrador e Gerente podem visualizar.
+- Link "Empresa" na sidebar.
+
+### 9) Termos de Responsabilidade (PDF)
+- **Recebimento**: ao atribuir item, gera PDF com dados da empresa, usuário (nome, departamento, CPF), item e condições; assinatura opcional.
+- **Devolução**: ao devolver item, gera PDF com dados, checklist, observações; assinatura opcional.
+- PDFs armazenados em `inventory_documents` (coluna `pdf_base64`).
+- Download no modal de Histórico do item (botões por documento).
+
+### 10) Perfil
 - Editar nome, departamento, avatar.
 - Trocar senha.
 - Dados do usuário logado.
@@ -203,7 +239,8 @@
 - **JWT**: access token (Header `Authorization: Bearer`) com expiração configurável.
 - **Refresh token**: em cookie HTTP-only; usado em `/auth/refresh` para renovar o access token.
 - **Proteção de rotas**: `Protected` (autenticado) e `RequireRole` (role mínima).
-- **Permissões**: `canCreate`, `canRead`, `canUpdate`, `canDelete`, `canManageUsers` (Administrador).
+- **Permissões**: `canCreate`, `canRead`, `canUpdate`, `canDelete`, `canManageUsers` (Administrador), `canListUsers` (Admin e Gerente).
+- **Gerente** pode listar usuários e atribuir itens a usuários com role Produto/Inventário.
 - **HttpClient**: refresh automático em 401; tratamento de erros com mensagens amigáveis.
 
 ## Integrações e configurações
@@ -227,3 +264,17 @@
 ## Pontos para evolução
 - **Tailwind**: migrar do CDN para build (PostCSS/CLI) para produção.
 - **HashRouter → BrowserRouter**: se usar domínio próprio e suporte a rewrites (ex.: Vercel).
+
+---
+
+## Funcionalidades recentes (Termos de Responsabilidade)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| **Configurações da Empresa** | Tela para cadastro de nome, razão social, CNPJ, endereço usados nos PDFs |
+| **CPF opcional** | Campo `cpf` em usuários; exibido nos Termos quando preenchido |
+| **Assinatura (canvas)** | `SignaturePad` permite desenhar assinatura; opcional em atribuição e devolução |
+| **PDF de Recebimento** | Gerado ao atribuir; inclui termo completo e assinatura (se fornecida) |
+| **PDF de Devolução** | Gerado ao devolver; inclui checklist, observações e assinatura (se fornecida) |
+| **Download no Histórico** | Botões para baixar PDFs no modal de Histórico do item |
+| **Gerente pode atribuir** | Gerente lista usuários e atribui itens a usuários Produto/Inventário |

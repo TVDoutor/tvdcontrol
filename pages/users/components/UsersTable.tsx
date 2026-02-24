@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { User, UserRole } from '../../../types';
 import { ROLE_LABELS } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 
 interface UsersTableProps {
   departments: string[];
+  uniqueJobTitles: string[];
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
+  departmentFilter: string;
+  onDepartmentFilterChange: (value: string) => void;
+  statusFilter: string;
+  onStatusFilterChange: (value: string) => void;
+  jobTitleFilter: string;
+  onJobTitleFilterChange: (value: string) => void;
   isLoading: boolean;
   users: User[];
   selectedUserId?: string;
@@ -20,8 +27,15 @@ interface UsersTableProps {
 
 const UsersTable: React.FC<UsersTableProps> = ({
   departments,
+  uniqueJobTitles,
   searchQuery,
   onSearchQueryChange,
+  departmentFilter,
+  onDepartmentFilterChange,
+  statusFilter,
+  onStatusFilterChange,
+  jobTitleFilter,
+  onJobTitleFilterChange,
   isLoading,
   users,
   selectedUserId,
@@ -32,8 +46,6 @@ const UsersTable: React.FC<UsersTableProps> = ({
   onEditClick,
   onDeleteClick,
 }) => {
-  const [departmentFilter, setDepartmentFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
 
   return (
     <div className="flex flex-col flex-1 min-w-0 gap-6 h-full overflow-y-auto pr-2 transition-all duration-300">
@@ -56,7 +68,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-white dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
-        <div className="md:col-span-5 relative group">
+        <div className="md:col-span-4 relative group">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-sub-light dark:text-text-sub-dark material-symbols-outlined group-focus-within:text-primary transition-colors">
             search
           </span>
@@ -68,7 +80,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             type="text"
           />
         </div>
-        <div className="md:col-span-3">
+        <div className="md:col-span-2">
           <Dropdown
             value={departmentFilter}
             placeholder="Todos Departamentos"
@@ -77,19 +89,32 @@ const UsersTable: React.FC<UsersTableProps> = ({
               ...departments.map((dept) => ({ value: dept, label: dept, icon: 'domain' })),
             ]}
             buttonClassName="w-full py-2.5 px-3 bg-background-light dark:bg-background-dark border border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main-light dark:text-text-main-dark cursor-pointer text-left flex items-center justify-between"
-            onValueChange={setDepartmentFilter}
+            onValueChange={onDepartmentFilterChange}
           />
         </div>
-        <div className="md:col-span-3">
+        <div className="md:col-span-2">
+          <Dropdown
+            value={jobTitleFilter}
+            placeholder="Todos Cargos"
+            options={[
+              { value: '', label: 'Todos Cargos', icon: 'work' },
+              ...uniqueJobTitles.map((jt) => ({ value: jt, label: jt, icon: 'work' })),
+            ]}
+            buttonClassName="w-full py-2.5 px-3 bg-background-light dark:bg-background-dark border border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main-light dark:text-text-main-dark cursor-pointer text-left flex items-center justify-between"
+            onValueChange={onJobTitleFilterChange}
+          />
+        </div>
+        <div className="md:col-span-2">
           <Dropdown
             value={statusFilter}
             placeholder="Todos Status"
             options={[
               { value: '', label: 'Todos Status', icon: 'list' },
               { value: 'ativo', label: 'Ativo', icon: 'check_circle' },
+              { value: 'inativo', label: 'Inativo', icon: 'block' },
             ]}
             buttonClassName="w-full py-2.5 px-3 bg-background-light dark:bg-background-dark border border-transparent focus:border-primary focus:ring-0 rounded-lg text-sm text-text-main-light dark:text-text-main-dark cursor-pointer text-left flex items-center justify-between"
-            onValueChange={setStatusFilter}
+            onValueChange={onStatusFilterChange}
           />
         </div>
       </div>
@@ -102,6 +127,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 <th className="px-6 py-4">Usuário</th>
                 <th className="px-6 py-4 hidden sm:table-cell">Perfil</th>
                 <th className="px-6 py-4 hidden sm:table-cell">Departamento</th>
+                <th className="px-6 py-4 hidden sm:table-cell">Cargo | Função</th>
                 <th className="px-6 py-4 text-center hidden sm:table-cell">Itens</th>
                 <th className="px-6 py-4 hidden md:table-cell">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
@@ -110,7 +136,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <tbody className="divide-y divide-border-light dark:divide-border-dark text-sm">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
+                  <td colSpan={7} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
                     Carregando usuários...
                   </td>
                 </tr>
@@ -158,6 +184,9 @@ const UsersTable: React.FC<UsersTableProps> = ({
                     </td>
                     <td className="px-6 py-4 text-text-sub-light dark:text-text-sub-dark hidden sm:table-cell">
                       {user.department}
+                    </td>
+                    <td className="px-6 py-4 text-text-sub-light dark:text-text-sub-dark hidden sm:table-cell">
+                      {user.jobTitle || '–'}
                     </td>
                     <td className="px-6 py-4 text-center hidden sm:table-cell">
                       <span
@@ -220,7 +249,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
+                  <td colSpan={7} className="px-6 py-8 text-center text-text-sub-light dark:text-text-sub-dark">
                     Nenhum usuário encontrado para "{searchQuery}".
                   </td>
                 </tr>

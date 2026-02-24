@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { User, UserRole } from '../types';
 import { useUsersStore } from '../store/UsersStore';
@@ -32,6 +32,9 @@ const Users: React.FC = () => {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [jobTitleFilter, setJobTitleFilter] = useState('');
 
   useEffect(() => {
     const state = location.state as { targetUserId?: string; editMode?: boolean } | null;
@@ -57,11 +60,30 @@ const Users: React.FC = () => {
     }
   }, [selectedUser?.id]);
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.id.includes(searchQuery)
+  const uniqueJobTitles = useMemo(
+    () => Array.from(new Set(users.map((u) => u.jobTitle).filter((v): v is string => Boolean(v?.trim())))),
+    [users]
+  );
+
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        const matchesSearch =
+          !searchQuery.trim() ||
+          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.id.includes(searchQuery);
+        const matchesDepartment =
+          !departmentFilter || user.department === departmentFilter;
+        const matchesStatus =
+          !statusFilter ||
+          (statusFilter === 'ativo' && user.status === 'active') ||
+          (statusFilter === 'inativo' && user.status === 'inactive');
+        const matchesJobTitle =
+          !jobTitleFilter || (user.jobTitle || '').trim() === jobTitleFilter;
+        return matchesSearch && matchesDepartment && matchesStatus && matchesJobTitle;
+      }),
+    [users, searchQuery, departmentFilter, statusFilter, jobTitleFilter]
   );
 
   const handleUserClick = (user: User) => {
@@ -309,8 +331,15 @@ const Users: React.FC = () => {
       <div className="flex flex-1 p-4 md:p-8 gap-8 overflow-hidden h-full">
         <UsersTable
           departments={DEPARTMENTS}
+          uniqueJobTitles={uniqueJobTitles}
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
+          departmentFilter={departmentFilter}
+          onDepartmentFilterChange={setDepartmentFilter}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          jobTitleFilter={jobTitleFilter}
+          onJobTitleFilterChange={setJobTitleFilter}
           isLoading={isLoading}
           users={filteredUsers}
           selectedUserId={selectedUser?.id}
