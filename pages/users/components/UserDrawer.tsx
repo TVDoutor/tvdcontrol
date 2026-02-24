@@ -392,16 +392,20 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-text-sub-light font-semibold">Cargo | Função</label>
-                        <Dropdown
+                        <select
+                          name="jobTitle"
                           value={editFormData.jobTitle || ''}
-                          placeholder="Selecione o cargo"
-                          options={[
-                            { value: '', label: 'Nenhum', icon: 'work' },
-                            ...JOB_TITLES.map((jt) => ({ value: jt, label: jt, icon: 'work' })),
-                          ]}
-                          buttonClassName="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none flex items-center justify-between"
-                          onValueChange={(v) => emitChange('jobTitle', v)}
-                        />
+                          onChange={onInputChange}
+                          className="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none cursor-pointer"
+                          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25em', paddingRight: '2.5rem' }}
+                        >
+                          <option value="">Selecione o cargo</option>
+                          {JOB_TITLES.map((jt) => (
+                            <option key={jt} value={jt}>
+                              {jt}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-text-sub-light font-semibold">Departamento</label>
