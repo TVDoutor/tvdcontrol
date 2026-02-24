@@ -112,6 +112,24 @@ async function ensureUserCpfColumn(): Promise<void> {
   }
 }
 
+async function ensureUserJobTitleColumn(): Promise<void> {
+  const [tables] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' LIMIT 1`
+  );
+  if (!Array.isArray(tables) || tables.length === 0) return;
+
+  const [cols] = await pool.query(
+    `SELECT 1 AS ok FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'job_title' LIMIT 1`
+  );
+  if (Array.isArray(cols) && cols.length > 0) return;
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN job_title VARCHAR(120) NULL`);
+  } catch (e: any) {
+    if (e?.code === 'ER_DUP_FIELDNAME') return;
+    throw e;
+  }
+}
+
 async function ensureCompanySettingsTable(): Promise<void> {
   const [tables] = await pool.query(
     `SELECT 1 AS ok FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'company_settings' LIMIT 1`
@@ -289,6 +307,7 @@ export async function getApp(): Promise<express.Express> {
     try {
       await ensureRefreshTokenColumns();
       await ensureUserCpfColumn();
+      await ensureUserJobTitleColumn();
       await ensureItemPhotoColumns();
       await ensureCompanySettingsTable();
       await ensureInventoryDocumentsTable();

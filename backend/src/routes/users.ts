@@ -20,9 +20,10 @@ usersRouter.get('/', (req, res, next) => {
   try {
     const rows = await query(`SELECT * FROM users ORDER BY created_at DESC`);
     const users = rows.map((u: any) => {
-      const { password_hash, ...user } = u;
+      const { password_hash, job_title, ...user } = u;
       return {
         ...user,
+        jobTitle: job_title ?? null,
         phone: user.phone ?? null,
         avatar: user.avatar || '',
         itemsCount: 0, // TODO: calculate from inventory_items
@@ -43,7 +44,7 @@ usersRouter.get('/:id/termo-itens', (req, res, next) => {
 }, async (req, res, next) => {
   try {
     const id = String(req.params.id);
-    const user = await queryOne(`SELECT name, department, cpf FROM users WHERE id = ?`, [id]);
+    const user = await queryOne(`SELECT name, department, job_title AS jobTitle, cpf FROM users WHERE id = ?`, [id]);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
 
     const company = await queryOne(
@@ -84,6 +85,7 @@ usersRouter.get('/:id/termo-itens', (req, res, next) => {
       user: {
         name: user.name,
         department: user.department || 'Geral',
+        jobTitle: user.jobTitle ?? null,
         cpf: user.cpf ?? null,
       },
       items,
@@ -114,9 +116,10 @@ usersRouter.get('/:id', (req, res, next) => {
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
-    const { password_hash, ...userResponse } = user;
+    const { password_hash, job_title, ...userResponse } = user;
     res.json({
       ...userResponse,
+      jobTitle: job_title ?? null,
       phone: userResponse.phone ?? null,
       avatar: userResponse.avatar || '',
       itemsCount: 0,
@@ -134,7 +137,7 @@ usersRouter.post('/', (req, res, next) => {
   next();
 }, async (req, res, next) => {
   try {
-    const { name, email, password, role, department, avatar, phone, cpf } = req.body;
+    const { name, email, password, role, department, jobTitle, avatar, phone, cpf } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -199,10 +202,11 @@ usersRouter.post('/', (req, res, next) => {
 
     const userId = generateUUID();
 
+    const finalJobTitle = typeof jobTitle === 'string' && jobTitle.trim() ? jobTitle.trim() : null;
     await query(
-      `INSERT INTO users (id, name, email, password_hash, role, department, avatar, phone, cpf, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, name.trim(), normalizedEmail, passwordHash, finalRole, department || 'Geral', finalAvatar, finalPhone, finalCpf, 'active']
+      `INSERT INTO users (id, name, email, password_hash, role, department, job_title, avatar, phone, cpf, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, name.trim(), normalizedEmail, passwordHash, finalRole, department || 'Geral', finalJobTitle, finalAvatar, finalPhone, finalCpf, 'active']
     );
 
     const newUser = await queryOne(`SELECT * FROM users WHERE id = ?`, [userId]);
@@ -210,9 +214,10 @@ usersRouter.post('/', (req, res, next) => {
       return res.status(500).json({ error: 'Erro ao criar usuário' });
     }
 
-    const { password_hash, ...userResponse } = newUser;
+    const { password_hash, job_title: jt, ...userResponse } = newUser;
     res.status(201).json({
       ...userResponse,
+      jobTitle: jt ?? null,
       phone: userResponse.phone ?? null,
       avatar: userResponse.avatar || '',
       itemsCount: 0,
@@ -231,7 +236,7 @@ usersRouter.put('/:id', (req, res, next) => {
 }, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, email, password, role, department, status, avatar, phone, cpf } = req.body;
+    const { name, email, password, role, department, jobTitle, status, avatar, phone, cpf } = req.body;
 
     const existing = await queryOne(`SELECT * FROM users WHERE id = ?`, [id]);
     if (!existing) {
@@ -290,6 +295,12 @@ usersRouter.put('/:id', (req, res, next) => {
       values.push(department);
     }
 
+    if (jobTitle !== undefined) {
+      const val = typeof jobTitle === 'string' && jobTitle.trim() ? jobTitle.trim() : null;
+      updates.push('job_title = ?');
+      values.push(val);
+    }
+
     if (avatar !== undefined) {
       if (typeof avatar !== 'string') {
         return res.status(400).json({ error: 'Avatar inválido' });
@@ -323,9 +334,10 @@ usersRouter.put('/:id', (req, res, next) => {
     }
 
     if (updates.length === 0) {
-      const { password_hash, ...userResponse } = existing;
+      const { password_hash, job_title: jt, ...userResponse } = existing;
       return res.json({
         ...userResponse,
+        jobTitle: jt ?? null,
         phone: userResponse.phone ?? null,
         avatar: userResponse.avatar || '',
         itemsCount: 0,
@@ -340,9 +352,10 @@ usersRouter.put('/:id', (req, res, next) => {
       return res.status(500).json({ error: 'Erro ao atualizar usuário' });
     }
 
-    const { password_hash, ...userResponse } = updated;
+    const { password_hash, job_title: jt, ...userResponse } = updated;
     res.json({
       ...userResponse,
+      jobTitle: jt ?? null,
       phone: userResponse.phone ?? null,
       avatar: userResponse.avatar || '',
       itemsCount: 0,

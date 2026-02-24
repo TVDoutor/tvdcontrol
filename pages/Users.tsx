@@ -211,6 +211,8 @@ const Users: React.FC = () => {
                 name: editFormData.name || '',
                 email: editFormData.email || '',
                 phone: editFormData.phone,
+                cpf: editFormData.cpf,
+                jobTitle: editFormData.jobTitle,
                 password,
                 role,
                 department: (editFormData.department || 'TI') as string,
@@ -234,6 +236,8 @@ const Users: React.FC = () => {
               if (typeof editFormData.name === 'string') payload.name = editFormData.name;
               if (typeof editFormData.email === 'string') payload.email = editFormData.email;
               if (typeof editFormData.phone === 'string') payload.phone = editFormData.phone;
+              if (editFormData.cpf !== undefined) payload.cpf = editFormData.cpf;
+              if (editFormData.jobTitle !== undefined) payload.jobTitle = editFormData.jobTitle;
               if (typeof editFormData.department === 'string') payload.department = editFormData.department;
               if (typeof editFormData.avatar === 'string') payload.avatar = editFormData.avatar;
               if (editFormData.status === 'active' || editFormData.status === 'inactive') payload.status = editFormData.status;

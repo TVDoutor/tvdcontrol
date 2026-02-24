@@ -14,6 +14,7 @@ export interface User {
     cpf?: string;
     role: UserRole;
     department: string;
+    jobTitle?: string;
     avatar: string;
     itemsCount: number;
     status: 'active' | 'inactive';

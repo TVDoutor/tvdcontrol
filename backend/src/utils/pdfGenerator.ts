@@ -14,6 +14,32 @@ function formatCnpj(v: string | null | undefined): string {
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 }
 
+const MESES_PT: Record<number, string> = {
+  1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+  7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
+};
+
+function formatDateForTermo(dateStr: string): string {
+  const d = dateStr || '';
+  const parts = d.split(/[\/\-\.]/).map((p) => parseInt(p.replace(/\D/g, ''), 10));
+  if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
+    const day = parts[0];
+    const month = parts[1];
+    const year = parts[2];
+    const monthName = MESES_PT[month] || 'Janeiro';
+    return `${String(day).padStart(2, '0')} de ${monthName} de ${year}`;
+  }
+  return dateStr;
+}
+
+function getEquipamentoTermo(category: string, type: string): string {
+  const c = (category || '').toLowerCase();
+  const t = (type || '').toLowerCase();
+  if (c.includes('notebook') || c.includes('computador') || t === 'notebook') return 'notebook';
+  if (c.includes('celular') || c.includes('smartphone') || t === 'smartphone') return 'celular';
+  return 'equipamento';
+}
+
 export type CompanyData = {
   name: string;
   legalName?: string | null;
@@ -27,6 +53,7 @@ export type CompanyData = {
 export type UserData = {
   name: string;
   department: string;
+  jobTitle?: string | null;
   cpf?: string | null;
 };
 
@@ -84,18 +111,22 @@ export function generateRecebimentoPdf(data: RecebimentoData): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const companyLine = buildCompanyLine(data.company);
-    doc.fontSize(11).text(companyLine, { align: 'justify' });
-    doc.moveDown(1);
+    const equipTermo = getEquipamentoTermo(data.item.category, data.item.type);
+    const equipamentoTitulo = equipTermo === 'notebook' ? 'NOTEBOOK' : equipTermo === 'celular' ? 'CELULAR' : 'EQUIPAMENTO';
 
-    doc.fontSize(12).font('Helvetica-Bold').text('TERMO DE RESPONSABILIDADE PELO USO DE EQUIPAMENTO CORPORATIVO', { align: 'center' });
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.text(`TERMO DE RESPONSABILIDADE PELO USO DE ${equipamentoTitulo}`, { align: 'center' });
+    doc.text('CORPORATIVO', { align: 'center' });
     doc.font('Helvetica').fontSize(11);
     doc.moveDown(1);
 
+    const empresaNome = data.company.legalName || data.company.name || 'Empresa';
+    const companyLine = buildCompanyLine(data.company);
+    const cargoOuFuncao = data.user.jobTitle?.trim() || data.user.department;
     const userCpf = data.user.cpf ? formatCpf(data.user.cpf) : '–';
     doc.text(
-      `A empresa ${data.company.name || 'acima indicada'}, entrega neste ato à colaborador(a) ${data.user.name}, ` +
-      `ocupante do cargo de ${data.user.department}, portador(a) do CPF nº ${userCpf}, doravante denominado(a) simplesmente USUÁRIO(A), o seguinte equipamento corporativo:`,
+      `A empresa ${companyLine}, entrega neste ato à colaborador(a) ${data.user.name}, ` +
+      `ocupante do cargo de ${cargoOuFuncao}, portador(a) do CPF nº ${userCpf}, doravante denominado(a) simplesmente USUÁRIO(A), o seguinte equipamento corporativo:`,
       { align: 'justify' }
     );
     doc.moveDown(1);
@@ -108,17 +139,17 @@ export function generateRecebimentoPdf(data: RecebimentoData): Promise<Buffer> {
     doc.moveDown(1);
 
     doc.text(
-      'O referido equipamento é cedido à USUÁRIO(A) mediante as condições abaixo descritas:',
+      `O referido ${equipTermo} é cedido à USUÁRIO(A) mediante as condições abaixo descritas:`,
       { align: 'justify' }
     );
     doc.moveDown(0.5);
 
     const clauses = [
-      '1. O equipamento deverá ser utilizado única e exclusivamente para fins profissionais, no exercício das atividades relacionadas à função desempenhada pelo(a) USUÁRIO(A), sendo vedada sua utilização para fins pessoais ou estranhos aos interesses da empresa.',
-      '2. O(A) USUÁRIO(A) é totalmente responsável pela guarda, uso adequado, conservação e zelo do equipamento, comprometendo-se a utilizá-lo conforme as orientações da empresa e a comunicar imediatamente qualquer dano, defeito, perda, furto ou extravio.',
-      '3. O(A) USUÁRIO(A) possui apenas a posse direta (detenção) do equipamento, não adquirindo, em hipótese alguma, direito de propriedade sobre o bem, sendo expressamente proibidos o empréstimo, a cessão, a locação ou a entrega do equipamento a terceiros, sob qualquer título.',
+      `1. O ${equipTermo} deverá ser utilizado única e exclusivamente para fins profissionais, no exercício das atividades relacionadas à função desempenhada pelo(a) USUÁRIO(A), sendo vedada sua utilização para fins pessoais ou estranhos aos interesses da empresa.`,
+      `2. O(A) USUÁRIO(A) é totalmente responsável pela guarda, uso adequado, conservação e zelo do ${equipTermo}, comprometendo-se a utilizá-lo conforme as orientações da empresa e a comunicar imediatamente qualquer dano, defeito, perda, furto ou extravio.`,
+      `3. O(A) USUÁRIO(A) possui apenas a posse direta (detenção) do ${equipTermo}, não adquirindo, em hipótese alguma, direito de propriedade sobre o bem, sendo expressamente proibidos o empréstimo, a cessão, a locação ou a entrega do equipamento a terceiros, sob qualquer título.`,
       '4. É vedada a instalação de programas, softwares ou aplicativos não autorizados pela empresa, bem como qualquer alteração de configuração que possa comprometer a segurança, o desempenho ou a integridade do equipamento e das informações corporativas.',
-      '5. Em caso de término da prestação de serviços ou rescisão do contrato de trabalho, por qualquer motivo, o(a) USUÁRIO(A) compromete-se a devolver o equipamento no mesmo dia do desligamento, em perfeito estado de funcionamento, ressalvado apenas o desgaste natural decorrente do uso normal.',
+      `5. Em caso de término da prestação de serviços ou rescisão do contrato de trabalho, por qualquer motivo, o(a) USUÁRIO(A) compromete-se a devolver o ${equipTermo} no mesmo dia do desligamento, em perfeito estado de funcionamento, ressalvado apenas o desgaste natural decorrente do uso normal.`,
       '6. O descumprimento das disposições deste termo poderá ensejar a responsabilização do(a) USUÁRIO(A) por eventuais danos, sem prejuízo das demais medidas administrativas e legais cabíveis, nos termos da legislação vigente.',
     ];
     clauses.forEach((c) => {
@@ -128,10 +159,11 @@ export function generateRecebimentoPdf(data: RecebimentoData): Promise<Buffer> {
 
     doc.text('E, por estarem de pleno acordo, as partes assinam o presente termo.', { align: 'justify' });
     doc.moveDown(2);
-    doc.text(`${data.company.city || 'Cidade'}, ${data.date}`);
+    const dataFormatada = formatDateForTermo(data.date);
+    doc.text(`${data.company.city || 'Cidade'}, ${dataFormatada}.`);
     doc.moveDown(1.5);
     doc.text('__________________________________________');
-    doc.text(data.company.name || 'Empresa');
+    doc.text(empresaNome);
     doc.moveDown(1);
     if (data.signatureBase64 && data.signatureBase64.startsWith('data:image')) {
       try {
@@ -163,8 +195,9 @@ export function generateDevolucaoPdf(data: DevolucaoData): Promise<Buffer> {
     doc.font('Helvetica').fontSize(11);
     doc.moveDown(1);
 
+    const cargoOuFuncao = data.user.jobTitle?.trim() || data.user.department;
     doc.text(
-      `O(A) colaborador(a) ${data.user.name}, ocupante do cargo de ${data.user.department}, ` +
+      `O(A) colaborador(a) ${data.user.name}, ocupante do cargo de ${cargoOuFuncao}, ` +
       `devolve à empresa ${data.company.name || 'acima indicada'} o seguinte equipamento:`,
       { align: 'justify' }
     );
@@ -186,10 +219,11 @@ export function generateDevolucaoPdf(data: DevolucaoData): Promise<Buffer> {
       doc.moveDown(1);
     }
 
-    doc.text(`Data da devolução: ${data.date}`);
+    const dataFormatada = formatDateForTermo(data.date);
+    doc.text(`Data da devolução: ${dataFormatada}`);
     doc.moveDown(1.5);
     doc.text('__________________________________________');
-    doc.text(data.company.name || 'Empresa');
+    doc.text(data.company.legalName || data.company.name || 'Empresa');
     doc.moveDown(1);
     if (data.signatureBase64 && data.signatureBase64.startsWith('data:image')) {
       try {
@@ -228,10 +262,11 @@ export function generateTermoItensUsuarioPdf(data: TermoItensUsuarioData): Promi
     doc.font('Helvetica').fontSize(11);
     doc.moveDown(1);
 
+    const cargoOuFuncao = data.user.jobTitle?.trim() || data.user.department;
     const userCpf = data.user.cpf ? formatCpf(data.user.cpf) : '–';
     doc.text(
       `A empresa ${data.company.name || 'acima indicada'}, declara que o(a) colaborador(a) ${data.user.name}, ` +
-      `ocupante do cargo de ${data.user.department}, portador(a) do CPF nº ${userCpf}, possui sob sua responsabilidade os seguintes equipamentos corporativos:`,
+      `ocupante do cargo de ${cargoOuFuncao}, portador(a) do CPF nº ${userCpf}, possui sob sua responsabilidade os seguintes equipamentos corporativos:`,
       { align: 'justify' }
     );
     doc.moveDown(1);
@@ -250,10 +285,11 @@ export function generateTermoItensUsuarioPdf(data: TermoItensUsuarioData): Promi
       { align: 'justify' }
     );
     doc.moveDown(2);
-    doc.text(`${data.company.city || 'Cidade'}, ${data.date}`);
+    const dataFormatada = formatDateForTermo(data.date);
+    doc.text(`${data.company.city || 'Cidade'}, ${dataFormatada}.`);
     doc.moveDown(1.5);
     doc.text('__________________________________________');
-    doc.text(data.company.name || 'Empresa');
+    doc.text(data.company.legalName || data.company.name || 'Empresa');
     doc.moveDown(0.5);
     doc.text(data.user.name);
 

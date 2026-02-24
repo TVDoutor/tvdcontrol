@@ -487,7 +487,7 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
     if (!item) return res.status(404).json({ message: 'Item não encontrado' });
 
     const [userRows] = await pool.query(
-      `SELECT name, department, cpf FROM users WHERE id = ?`,
+      `SELECT name, department, job_title AS jobTitle, cpf FROM users WHERE id = ?`,
       [userId]
     );
     const user = (userRows as any[])[0];
@@ -538,6 +538,7 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
         user: {
           name: user.name,
           department: user.department || 'Geral',
+          jobTitle: user.jobTitle ?? null,
           cpf: user.cpf ?? null,
         },
         item: {
@@ -593,7 +594,7 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
     if (!userId) return res.status(400).json({ message: 'Item não está atribuído' });
 
     const [userRows] = await pool.query(
-      `SELECT name, department, cpf FROM users WHERE id = ?`,
+      `SELECT name, department, job_title AS jobTitle, cpf FROM users WHERE id = ?`,
       [userId]
     );
     const user = (userRows as any[])[0];
@@ -644,6 +645,7 @@ itemsRouter.post('/:id/return', authenticateUser, async (req, res, next) => {
         user: {
           name: user.name,
           department: user.department || 'Geral',
+          jobTitle: user.jobTitle ?? null,
           cpf: user.cpf ?? null,
         },
         item: {

@@ -12,6 +12,7 @@ type FormState = {
   email: string;
   phone: string;
   cpf: string;
+  jobTitle: string;
   department: string;
   role: string;
   password: string;
@@ -30,6 +31,7 @@ const AddUser: React.FC = () => {
     email: '',
     phone: '',
     cpf: '',
+    jobTitle: '',
     department: 'TI',
     role: 'Usuario',
     password: '',
@@ -98,6 +100,7 @@ const AddUser: React.FC = () => {
           email: form.email.trim(),
           phone: form.phone.trim(),
           cpf: form.cpf.trim() ? form.cpf.replace(/\D/g, '') : undefined,
+          jobTitle: form.jobTitle.trim() || undefined,
           password: requiresPassword ? form.password : undefined,
           role: form.role as any,
           department: form.department,
@@ -193,6 +196,16 @@ const AddUser: React.FC = () => {
                   onChange={(e) => setField('cpf', e.target.value)}
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
                   placeholder="000.000.000-00"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-text-main-light dark:text-slate-200">Cargo | Função</span>
+                <input
+                  value={form.jobTitle}
+                  onChange={(e) => setField('jobTitle', e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
+                  placeholder="Ex.: Desenvolvedor, Customer Success, Analista"
                 />
               </label>
 

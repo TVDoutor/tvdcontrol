@@ -391,6 +391,16 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                         />
                       </div>
                       <div className="flex flex-col gap-1">
+                        <label className="text-xs text-text-sub-light font-semibold">Cargo | Função</label>
+                        <input
+                          name="jobTitle"
+                          value={editFormData.jobTitle || ''}
+                          onChange={onInputChange}
+                          className="w-full text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="Ex.: Desenvolvedor, Customer Success"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
                         <label className="text-xs text-text-sub-light font-semibold">Departamento</label>
                         <Dropdown
                           name="department"
@@ -448,6 +458,8 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                       <ContactItem icon="call" label="Telefone" value={selectedUser.phone || '-'} />
                       <div className="border-t border-border-light dark:border-border-dark my-1"></div>
                       <ContactItem icon="badge" label="CPF" value={selectedUser.cpf ? formatCpf(selectedUser.cpf) : '-'} />
+                      <div className="border-t border-border-light dark:border-border-dark my-1"></div>
+                      <ContactItem icon="work" label="Cargo | Função" value={selectedUser.jobTitle || '-'} />
                       <div className="border-t border-border-light dark:border-border-dark my-1"></div>
                       <ContactItem icon="domain" label="Departamento" value={selectedUser.department} />
                     </div>
