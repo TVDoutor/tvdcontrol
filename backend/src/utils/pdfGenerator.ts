@@ -251,46 +251,60 @@ export function generateTermoItensUsuarioPdf(data: TermoItensUsuarioData): Promi
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const companyLine = buildCompanyLine(data.company);
-    doc.fontSize(11).text(companyLine, { align: 'justify' });
-    doc.moveDown(1);
-
-    doc.fontSize(12).font('Helvetica-Bold').text(
-      'TERMO DE RESPONSABILIDADE — RELAÇÃO DE EQUIPAMENTOS CORPORATIVOS',
-      { align: 'center' }
-    );
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.text('TERMO DE RESPONSABILIDADE PELO USO DE EQUIPAMENTOS', { align: 'center' });
+    doc.text('CORPORATIVOS', { align: 'center' });
     doc.font('Helvetica').fontSize(11);
     doc.moveDown(1);
 
+    const companyLine = buildCompanyLine(data.company);
     const cargoOuFuncao = data.user.jobTitle?.trim() || data.user.department;
     const userCpf = data.user.cpf ? formatCpf(data.user.cpf) : '–';
+    const equipamentosTexto = data.items.length === 1 ? 'o seguinte equipamento corporativo' : 'os seguintes equipamentos corporativos';
     doc.text(
-      `A empresa ${data.company.name || 'acima indicada'}, declara que o(a) colaborador(a) ${data.user.name}, ` +
-      `ocupante do cargo de ${cargoOuFuncao}, portador(a) do CPF nº ${userCpf}, possui sob sua responsabilidade os seguintes equipamentos corporativos:`,
+      `A empresa ${companyLine}, entrega neste ato à colaborador(a) ${data.user.name}, ` +
+      `ocupante do cargo de ${cargoOuFuncao}, portador(a) do CPF nº ${userCpf}, doravante denominado(a) simplesmente USUÁRIO(A), ${equipamentosTexto}:`,
       { align: 'justify' }
     );
     doc.moveDown(1);
 
-    data.items.forEach((item, i) => {
-      doc.font('Helvetica-Bold').text(`${i + 1}. ${item.category} — ${item.model}`, { continued: false });
-      doc.font('Helvetica').fontSize(10);
-      doc.text(`   Marca: ${item.manufacturer || '–'} | Nº patrimônio/série: ${item.assetTag || item.serialNumber}`);
-      if (item.notes) doc.text(`   Observações: ${item.notes}`);
-      doc.fontSize(11).moveDown(0.5);
+    data.items.forEach((item) => {
+      doc.text(`• Equipamento: ${item.category}`);
+      doc.text(`• Marca: ${item.manufacturer || '–'}`);
+      doc.text(`• Modelo: ${item.model}`);
+      doc.text(`• Número de patrimônio / série: ${item.assetTag || item.serialNumber}`);
+      if (item.notes) doc.text(`• Observações: ${item.notes}`);
+      doc.moveDown(0.5);
     });
 
-    doc.moveDown(0.5);
     doc.text(
-      'O(A) colaborador(a) assume total responsabilidade pelo uso adequado, conservação e devolução dos equipamentos acima, em conformidade com as políticas da empresa.',
+      'Os referidos equipamentos são cedidos à USUÁRIO(A) mediante as condições abaixo descritas:',
       { align: 'justify' }
     );
+    doc.moveDown(0.5);
+
+    const clauses = [
+      '1. O(s) equipamento(s) deverá(ão) ser utilizado(s) única e exclusivamente para fins profissionais, no exercício das atividades relacionadas à função desempenhada pelo(a) USUÁRIO(A), sendo vedada sua utilização para fins pessoais ou estranhos aos interesses da empresa.',
+      '2. O(A) USUÁRIO(A) é totalmente responsável pela guarda, uso adequado, conservação e zelo do(s) equipamento(s), comprometendo-se a utilizá-lo(s) conforme as orientações da empresa e a comunicar imediatamente qualquer dano, defeito, perda, furto ou extravio.',
+      '3. O(A) USUÁRIO(A) possui apenas a posse direta (detenção) do(s) equipamento(s), não adquirindo, em hipótese alguma, direito de propriedade sobre o(s) bem(ns), sendo expressamente proibidos o empréstimo, a cessão, a locação ou a entrega do(s) equipamento(s) a terceiros, sob qualquer título.',
+      '4. É vedada a instalação de programas, softwares ou aplicativos não autorizados pela empresa, bem como qualquer alteração de configuração que possa comprometer a segurança, o desempenho ou a integridade do(s) equipamento(s) e das informações corporativas.',
+      '5. Em caso de término da prestação de serviços ou rescisão do contrato de trabalho, por qualquer motivo, o(a) USUÁRIO(A) compromete-se a devolver o(s) equipamento(s) no mesmo dia do desligamento, em perfeito estado de funcionamento, ressalvado apenas o desgaste natural decorrente do uso normal.',
+      '6. O descumprimento das disposições deste termo poderá ensejar a responsabilização do(a) USUÁRIO(A) por eventuais danos, sem prejuízo das demais medidas administrativas e legais cabíveis, nos termos da legislação vigente.',
+    ];
+    clauses.forEach((c) => {
+      doc.text(c, { align: 'justify' });
+      doc.moveDown(0.4);
+    });
+
+    doc.text('E, por estarem de pleno acordo, as partes assinam o presente termo.', { align: 'justify' });
     doc.moveDown(2);
     const dataFormatada = formatDateForTermo(data.date);
     doc.text(`${data.company.city || 'Cidade'}, ${dataFormatada}.`);
     doc.moveDown(1.5);
     doc.text('__________________________________________');
     doc.text(data.company.legalName || data.company.name || 'Empresa');
-    doc.moveDown(0.5);
+    doc.moveDown(1);
+    doc.text('__________________________________________');
     doc.text(data.user.name);
 
     doc.end();
