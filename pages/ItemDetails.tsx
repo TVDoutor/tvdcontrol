@@ -130,7 +130,8 @@ const ItemDetails: React.FC = () => {
         purchaseDate: '',
         warrantyEnd: '',
         description: '',
-        phoneNumber: ''
+        phoneNumber: '',
+        photoMain: ''
     });
 
     // Helper to convert ISO date to yyyy-MM-dd format for date inputs
@@ -155,6 +156,7 @@ const ItemDetails: React.FC = () => {
             warrantyEnd: toDateInputFormat(item.warrantyEnd) || defaultWarrantyEnd,
             description: item.specs || item.notes || '',
             phoneNumber: item.phoneNumber || '',
+            photoMain: item.photoMain || '',
         });
     }, [item?.id]);
 
@@ -261,6 +263,7 @@ const ItemDetails: React.FC = () => {
             purchasePrice: Number.isFinite(priceNumber as number) ? (priceNumber as number) : undefined,
             specs: formData.description,
             phoneNumber: formData.phoneNumber?.trim() || undefined,
+            photoMain: formData.photoMain || undefined,
         });
 
         setIsEditing(false);
@@ -692,17 +695,45 @@ const ItemDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column (2/3) */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
-                        {/* Foto do Equipamento */}
-                        {item?.photoMain && (
+                        {/* Foto do Equipamento - referência para comparação na devolução */}
+                        {isEditing ? (
                             <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
                                 <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
                                     <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Foto de referência para comparação na devolução.</p>
+                                </div>
+                                <div className="p-6">
+                                    <PhotoUpload
+                                        value={formData.photoMain}
+                                        onChange={(v) => setFormData((prev) => ({ ...prev, photoMain: v }))}
+                                        label=""
+                                        placeholder="Clique para adicionar ou trocar foto"
+                                        helperText="Esta imagem servirá como referência para verificar o estado do equipamento na devolução."
+                                    />
+                                </div>
+                            </div>
+                        ) : item?.photoMain ? (
+                            <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
+                                <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
+                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Referência para comparação na devolução.</p>
                                 </div>
                                 <div className="p-6">
                                     <img src={item.photoMain} alt="Equipamento" className="rounded-lg max-w-full max-h-[280px] object-contain border border-slate-100 dark:border-slate-700" />
                                 </div>
                             </div>
-                        )}
+                        ) : allowEdit ? (
+                            <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
+                                <div className="px-6 py-4 border-b border-border-light dark:border-border-dark bg-slate-50/50 dark:bg-slate-800/50">
+                                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">Foto do Equipamento</h3>
+                                </div>
+                                <div className="p-6 flex flex-col items-center justify-center gap-3 py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
+                                    <span className="material-symbols-outlined text-5xl text-slate-400">add_a_photo</span>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">Nenhuma foto cadastrada.</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Clique em &quot;Editar Item&quot; para adicionar uma foto de referência para a devolução.</p>
+                                </div>
+                            </div>
+                        ) : null}
 
                         {/* General Info */}
                         <div className="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm">
