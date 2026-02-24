@@ -55,8 +55,9 @@ const Dashboard: React.FC = () => {
         // Category Filter Logic
         const matchesCategory = activeFilters.category === 'all' || item.category === activeFilters.category;
 
-        // Status Filter Logic
-        const matchesStatus = activeFilters.status === 'all' || item.status === activeFilters.status;
+        // Status Filter Logic (usa assignedTo para corrigir inconsistência)
+        const effectiveStatus = item.assignedTo ? 'in_use' : item.status;
+        const matchesStatus = activeFilters.status === 'all' || effectiveStatus === activeFilters.status;
 
         return matchesSearch && matchesCategory && matchesStatus;
     });
@@ -104,9 +105,10 @@ const Dashboard: React.FC = () => {
   );
 
   const totalItems = items.length;
-  const inUseCount = items.filter((i) => i.status === 'in_use').length;
-  const availableCount = items.filter((i) => i.status === 'available').length;
-  const maintenanceCount = items.filter((i) => i.status === 'maintenance').length;
+  const effectiveStatus = (i: InventoryItem) => (i.assignedTo ? 'in_use' : i.status);
+  const inUseCount = items.filter((i) => effectiveStatus(i) === 'in_use').length;
+  const availableCount = items.filter((i) => effectiveStatus(i) === 'available').length;
+  const maintenanceCount = items.filter((i) => effectiveStatus(i) === 'maintenance').length;
 
   const chartData = useMemo(
     () => {
@@ -236,7 +238,7 @@ const Dashboard: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-white dark:bg-surface-dark text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm transition-shadow" 
-                  placeholder="Buscar por nome, SKU, categoria ou status..." 
+                  placeholder="Buscar por nome, modelo, SKU, categoria ou status..." 
                   type="text"
                />
              </div>
@@ -285,15 +287,15 @@ const Dashboard: React.FC = () => {
                                 key={item.id}
                                 id={item.id}
                                 icon={getCategoryIcon(item.category)} 
-                                name={item.name || item.model} 
+                                name={item.model || item.name} 
                                 desc={
-                                  item.name
-                                    ? (item.model || item.manufacturer || item.desc)
+                                  item.model
+                                    ? (item.name || item.manufacturer || item.desc)
                                     : (item.manufacturer || item.desc)
                                 } 
                                 sku={item.sku || '-'} 
                                 category={item.category} 
-                                status={item.status}
+                                status={item.assignedTo ? 'in_use' : item.status}
                                 index={index}
                                 onOpen={(id) => navigate(`/item/${id}`)}
                             />
