@@ -102,11 +102,11 @@ const ItemDetails: React.FC = () => {
     }, [itemId, loadHistory]);
 
     useEffect(() => {
-        if (showHistory && itemId) {
+        if (itemId) {
             const docs = getDocumentsService();
             void docs.listByItem(itemId).then(setItemDocuments).catch(() => setItemDocuments([]));
         }
-    }, [showHistory, itemId]);
+    }, [itemId]);
 
     useEffect(() => {
         const service = getCategoriesService();
@@ -297,6 +297,9 @@ const ItemDetails: React.FC = () => {
                 setReturnNotes('');
                 setReturnItemsSelected([]);
                 setReturnSignature('');
+                if (itemId) {
+                    getDocumentsService().listByItem(itemId).then(setItemDocuments).catch(() => {});
+                }
             })
             .catch((err) => {
                 const msg = err?.message || 'Não foi possível concluir a devolução. Tente novamente.';
@@ -386,9 +389,10 @@ const ItemDetails: React.FC = () => {
                                 </h4>
                                 <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-8">
                                     {(historyEvents || []).length > 0 ? (
-                                        (historyEvents || []).map((event) => (
-                                            <TimelineEvent key={event.id} {...event} />
-                                        ))
+                                        (historyEvents || []).map((event) => {
+                                            const doc = itemDocuments.find((d) => d.historyEventId === event.id);
+                                            return <TimelineEvent key={event.id} {...event} documentId={doc?.id} documentType={doc?.type} />;
+                                        })
                                     ) : (
                                         <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-4">
                                             Nenhum evento registrado para este item.
@@ -579,6 +583,9 @@ const ItemDetails: React.FC = () => {
                                             setShowAssignModal(false);
                                             setSelectedAssignUserId('');
                                             setAssignSignature('');
+                                            if (itemId) {
+                                                getDocumentsService().listByItem(itemId).then(setItemDocuments).catch(() => {});
+                                            }
                                             if (docId) {
                                                 const svc = getDocumentsService();
                                                 const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
@@ -897,9 +904,10 @@ const ItemDetails: React.FC = () => {
                             </div>
                             <div className="p-6">
                                 <div className="relative border-l border-slate-200 dark:border-slate-700 ml-3 space-y-6">
-                                    {(historyEvents || []).slice(0, 3).map((event) => (
-                                        <TimelineEvent key={event.id} {...event} />
-                                    ))}
+                                    {(historyEvents || []).slice(0, 3).map((event) => {
+                                        const doc = itemDocuments.find((d) => d.historyEventId === event.id);
+                                        return <TimelineEvent key={event.id} {...event} documentId={doc?.id} documentType={doc?.type} />;
+                                    })}
                                 </div>
                                 <button onClick={() => { setShowHistory(true); if (itemId) void loadHistory(itemId); }} className="w-full mt-6 py-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors uppercase tracking-wide">Ver Histórico Completo</button>
                             </div>
@@ -931,7 +939,7 @@ const InfoField = ({ label, value, icon, isEditing, name, onChange }: any) => (
     </div>
 );
 
-const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnNotes, returnItems }: any) => {
+const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnNotes, returnItems, documentId, documentType }: any) => {
     let bgClass = 'bg-slate-300 dark:bg-slate-600';
     if (color === 'primary') bgClass = 'bg-primary';
     if (color === 'success') bgClass = 'bg-emerald-500';
@@ -946,12 +954,28 @@ const TimelineEvent = ({ color, date, title, desc, returnPhoto, returnNotes, ret
         // ignore
     }
 
+    const docLabel = documentType === 'recebimento' ? 'Termo de Recebimento' : documentType === 'devolucao' ? 'Termo de Devolução' : 'PDF';
+
     return (
         <div className="relative pl-6 animate-in fade-in slide-in-from-top-2 duration-300">
             <div className={`absolute -left-[5px] top-1.5 size-2.5 rounded-full ring-4 ring-white dark:ring-surface-dark ${bgClass}`}></div>
             <p className="text-xs text-slate-400 font-medium mb-0.5">{date}</p>
             <p className="text-sm font-medium text-slate-900 dark:text-white">{title}</p>
             <p className="text-xs text-slate-500 mt-1">{desc}</p>
+            {documentId && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        const svc = getDocumentsService();
+                        const d = date ? date.split(',')[0].trim().replace(/\s+/g, '-') : new Date().toISOString().slice(0, 10);
+                        void svc.download(documentId, `termo-${documentType}-${d}.pdf`);
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 hover:underline transition-colors"
+                >
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    Baixar {docLabel}
+                </button>
+            )}
             {itemsList.length > 0 && (
                 <div className="mt-2 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
                     <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Itens devolvidos:</p>
