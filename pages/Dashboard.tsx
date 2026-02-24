@@ -15,7 +15,8 @@ const Dashboard: React.FC = () => {
     void refresh();
   }, [refresh]);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Filter States
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState({
@@ -97,6 +98,20 @@ const Dashboard: React.FC = () => {
       setSearchQuery('');
       setIsFilterOpen(false);
   };
+
+  // Pagination
+  const ITEMS_PER_PAGE = 8;
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeFilters]);
+
+  useEffect(() => {
+    setCurrentPage((p) => (p > totalPages && totalPages >= 1 ? totalPages : p));
+  }, [totalPages]);
 
   // Extract unique categories for filter dropdown
   const uniqueCategories = useMemo(
@@ -282,7 +297,7 @@ const Dashboard: React.FC = () => {
                         </td>
                       </tr>
                     ) : filteredItems.length > 0 ? (
-                        filteredItems.slice(0, 8).map((item, index) => (
+                        paginatedItems.map((item, index) => (
                             <TableRow 
                                 key={item.id}
                                 id={item.id}
@@ -296,7 +311,7 @@ const Dashboard: React.FC = () => {
                                 sku={item.sku || '-'} 
                                 category={item.category} 
                                 status={item.assignedTo ? 'in_use' : item.status}
-                                index={index}
+                                index={startIndex + index}
                                 onOpen={(id) => navigate(`/item/${id}`)}
                             />
                         ))
@@ -324,11 +339,36 @@ const Dashboard: React.FC = () => {
              </div>
              <div className="p-4 border-t border-border-light dark:border-border-dark flex items-center justify-between">
                 <span className="text-sm text-slate-500 dark:text-slate-400">
-                    Mostrando {Math.min(filteredItems.length, 8)} de {filteredItems.length} itens filtrados
+                    Mostrando {filteredItems.length > 0 ? startIndex + 1 : 0} a {Math.min(startIndex + ITEMS_PER_PAGE, filteredItems.length)} de {filteredItems.length} itens filtrados
                 </span>
                 <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 disabled:opacity-50 transition-colors" disabled><span className="material-symbols-outlined">chevron_left</span></button>
-                    <button className="p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 hover:text-slate-900 transition-colors"><span className="material-symbols-outlined">chevron_right</span></button>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                      className="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Anterior
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`min-w-[36px] px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          page === currentPage
+                            ? 'bg-primary text-white'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                      className="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Próxima
+                    </button>
                 </div>
              </div>
            </div>
