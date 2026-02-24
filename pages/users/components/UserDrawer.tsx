@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { InventoryItem, User, UserRole } from '../../../types';
 import { canManageUsers } from '../../../utils/permissions';
-import { USER_ROLES, ROLE_LABELS, JOB_TITLES } from '../constants';
+import { USER_ROLES, ROLE_LABELS } from '../constants';
 import { Dropdown } from '../../../components/Dropdown';
 import { ContactItem, InventoryItemCard } from './UserDrawerParts';
 import { getUsersService } from '../../../services/usersService';
@@ -10,6 +10,7 @@ type FieldErrors = Record<string, string>;
 
 interface UserDrawerProps {
   departments: string[];
+  jobTitles: string[];
   selectedUser: User | null;
   currentUser: User | null | undefined;
   isEditing: boolean;
@@ -73,6 +74,7 @@ const UserDrawerDownloadTermoButton: React.FC<{ userId: string; userName: string
 
 const UserDrawer: React.FC<UserDrawerProps> = ({
   departments,
+  jobTitles,
   selectedUser,
   currentUser,
   isEditing,
@@ -400,7 +402,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25em', paddingRight: '2.5rem' }}
                         >
                           <option value="">Selecione o cargo</option>
-                          {JOB_TITLES.map((jt) => (
+                          {jobTitles.map((jt) => (
                             <option key={jt} value={jt}>
                               {jt}
                             </option>

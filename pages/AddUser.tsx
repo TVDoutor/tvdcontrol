@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
-import { DEPARTMENTS, USER_ROLES, ROLE_LABELS, JOB_TITLES } from './users/constants';
+import { DEPARTMENTS, USER_ROLES, ROLE_LABELS } from './users/constants';
+import { useCargoStore } from '../store/CargoStore';
 
 const DEFAULT_AVATAR = 'https://cdn-icons-png.flaticon.com/512/847/847969.png';
 
@@ -24,6 +25,7 @@ const AddUser: React.FC = () => {
   const navigate = useNavigate();
   const { createUser } = useUsersStore();
   const { items, assignItem } = useInventoryStore();
+  const { jobTitles } = useCargoStore();
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<FormState>({
@@ -207,7 +209,7 @@ const AddUser: React.FC = () => {
                   className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
                 >
                   <option value="">Selecione o cargo</option>
-                  {JOB_TITLES.map((jt) => (
+                  {jobTitles.map((jt) => (
                     <option key={jt} value={jt}>
                       {jt}
                     </option>

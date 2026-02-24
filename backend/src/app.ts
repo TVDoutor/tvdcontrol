@@ -9,6 +9,7 @@ import { itemsRouter } from './routes/items';
 import { categoriesRouter } from './routes/categories';
 import { companySettingsRouter } from './routes/companySettings';
 import { documentsRouter } from './routes/documents';
+import { cargosRouter } from './routes/cargos';
 import { pool } from './db';
 import { generateUUID } from './utils/uuid';
 
@@ -109,6 +110,51 @@ async function ensureUserCpfColumn(): Promise<void> {
   } catch (e: any) {
     if (e?.code === 'ER_DUP_FIELDNAME') return;
     throw e;
+  }
+}
+
+const CARGO_NAMES = [
+  'Executivo de Contas Junior', 'Executivo de Contas Senior 1', 'Executivo de Contas Senior 2',
+  'Executivo de Contas Pleno 1', 'Executivo de Contas Pleno 2', 'Analista de marketing Junior',
+  'Analista de marketing Senior 1', 'Analista de marketing Senior 2', 'Analista de marketing Pleno 1',
+  'Analista de marketing Pleno 2', 'Customer Success pleno 3', 'Customer Success Senior 2',
+  'Customer Success Senior 3', 'Assistente de Mkt Pleno 2', 'Assistente de Mkt Senior 2',
+  'Jornalista Pleno 1', 'Jornalista Pleno 2', 'Jornalista Pleno 3', 'Jornalista Senior 1',
+  'Jornalista Senior 2', 'Jornalista Senior 3', 'Jornalista', 'Especialista de Marketing Digital Junior',
+  'Especialista de Marketing Digital Pleno 1', 'Especialista de Marketing Digital Pleno 2',
+  'Especialista de Marketing Digital Senior 1', 'Especialista de Marketing Digital Senior 2',
+  'Analista de Inteligência Junior', 'Analista de Inteligência Pleno 2', 'Analista de Inteligência Pleno',
+  'Analista de inteligência', 'Analista de marketing', 'Analistas de tecnologia da informação Pleno 2',
+  'Analistas de tecnologia da informação Pleno', 'Analistas de tecnologia da informação Senior',
+  'Analistas de tecnologia da informação', 'Assistente de customer success Jr', 'Assistente de customer success',
+  'Assistente de diretoria', 'Assistente de Mkt Junior', 'Assistente de Mkt Pleno', 'Assistente de Mkt Senior',
+  'Assistente de Mkt', 'Assistente de sucesso', 'Assistente de Vendas SDR', 'Assistente Financeiro',
+  'Auxiliar Comercial Junior', 'Auxiliar Comercial Pleno 2', 'Auxiliar Comercial', 'Customer Success pleno 2',
+  'Customer Success pleno', 'Customer Success Senior', 'Designer júnior', 'Designer Pleno 2', 'Designer Pleno',
+  'Designer trainee B', 'Designer trainee', 'Diretor de Criação', 'Executivo de Contas',
+  'Gerente administrativo financeiro', 'Gerente comercial', 'Gerente de customer success',
+  'Gerente de grandes contas', 'Gerente de suporte técnico de TI', 'Gerente de vendas',
+  'Jornalista Pleno', 'Jornalista Senior', 'Suporte comercial Júnior', 'Suporte comercial Pleno 2',
+  'Suporte comercial Pleno', 'Suporte comercial', 'Técnico de suporte ao usuário de T.I. 2',
+  'Técnico de suporte ao usuário de T.I. 3', 'Técnico suporte ao usuário de TI',
+  'Vendedor interno Júnior', 'Vendedor interno Pleno 2', 'Vendedor interno Pleno', 'Vendedor interno',
+];
+
+async function ensureCargoTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cargo (
+      id CHAR(36) PRIMARY KEY,
+      name VARCHAR(120) NOT NULL UNIQUE,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  for (const name of CARGO_NAMES) {
+    await pool.query(
+      `INSERT IGNORE INTO cargo (id, name) VALUES (?, ?)`,
+      [generateUUID(), name]
+    );
   }
 }
 
@@ -264,6 +310,7 @@ function createApp(): express.Express {
   app.use('/categories', categoriesRouter);
   app.use('/company-settings', companySettingsRouter);
   app.use('/documents', documentsRouter);
+  app.use('/cargos', cargosRouter);
 
   const frontendDistPath = path.resolve(__dirname, '../../dist');
   const frontendIndexPath = path.join(frontendDistPath, 'index.html');
@@ -274,7 +321,7 @@ function createApp(): express.Express {
 
     app.get('*', (req, res) => {
       const p = req.path || '';
-      const isApiPath = p === '/health' || p.startsWith('/auth') || p.startsWith('/users') || p.startsWith('/items') || p.startsWith('/categories') || p.startsWith('/company-settings') || p.startsWith('/documents');
+      const isApiPath = p === '/health' || p.startsWith('/auth') || p.startsWith('/users') || p.startsWith('/items') || p.startsWith('/categories') || p.startsWith('/company-settings') || p.startsWith('/documents') || p.startsWith('/cargos');
       if (isApiPath) {
         return res.status(404).json({ error: 'Not found' });
       }
@@ -312,6 +359,7 @@ export async function getApp(): Promise<express.Express> {
       await ensureCompanySettingsTable();
       await ensureInventoryDocumentsTable();
       await ensureCategoriesTableAndSeed();
+      await ensureCargoTable();
     } catch (e) {
       console.error('[tvdcontrol-backend] schema init error:', e);
     }

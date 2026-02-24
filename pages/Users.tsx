@@ -5,7 +5,8 @@ import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { useAuthStore } from '../store/AuthStore';
 import { canUpdate, canDelete } from '../utils/permissions';
-import { DEPARTMENTS, JOB_TITLES } from './users/constants';
+import { DEPARTMENTS } from './users/constants';
+import { useCargoStore } from '../store/CargoStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
 import UserDeleteModal from './users/components/UserDeleteModal';
 import UsersTable from './users/components/UsersTable';
@@ -22,6 +23,7 @@ const Users: React.FC = () => {
   const navigate = useNavigate();
   const { users, isLoading, error, createUser, updateUser, deleteUser } = useUsersStore();
   const { items, assignItem } = useInventoryStore();
+  const { jobTitles } = useCargoStore();
   const { user: currentUser } = useAuthStore();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -327,7 +329,7 @@ const Users: React.FC = () => {
       <div className="flex flex-1 p-4 md:p-8 gap-8 overflow-hidden h-full">
         <UsersTable
           departments={DEPARTMENTS}
-          jobTitles={JOB_TITLES}
+          jobTitles={jobTitles}
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
           departmentFilter={departmentFilter}
@@ -349,6 +351,7 @@ const Users: React.FC = () => {
 
         <UserDrawer
           departments={DEPARTMENTS}
+          jobTitles={jobTitles}
           selectedUser={selectedUser}
           currentUser={currentUser}
           isEditing={isEditing}
