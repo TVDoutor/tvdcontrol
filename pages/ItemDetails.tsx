@@ -716,21 +716,25 @@ const ItemDetails: React.FC = () => {
                                     <h3 className="text-base font-semibold text-slate-900 dark:text-white">Fotos do Equipamento</h3>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Até 2 fotos de referência para comparação na devolução.</p>
                                 </div>
-                                <div className="p-6 space-y-4">
-                                    <PhotoUpload
-                                        value={formData.photoMain}
-                                        onChange={(v) => setFormData((prev) => ({ ...prev, photoMain: v }))}
-                                        label="Foto 1"
-                                        placeholder="Clique para adicionar ou trocar 1ª foto"
-                                        helperText=""
-                                    />
-                                    <PhotoUpload
-                                        value={formData.photoMain2}
-                                        onChange={(v) => setFormData((prev) => ({ ...prev, photoMain2: v }))}
-                                        label="Foto 2"
-                                        placeholder="Clique para adicionar ou trocar 2ª foto"
-                                        helperText="Opcional."
-                                    />
+                                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="border border-dashed border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50/50 dark:bg-slate-800/30">
+                                        <PhotoUpload
+                                            value={formData.photoMain}
+                                            onChange={(v) => setFormData((prev) => ({ ...prev, photoMain: v }))}
+                                            label="Foto 1"
+                                            placeholder="Clique para adicionar 1ª foto"
+                                            helperText=""
+                                        />
+                                    </div>
+                                    <div className="border border-dashed border-slate-200 dark:border-slate-600 rounded-lg p-4 bg-slate-50/50 dark:bg-slate-800/30">
+                                        <PhotoUpload
+                                            value={formData.photoMain2}
+                                            onChange={(v) => setFormData((prev) => ({ ...prev, photoMain2: v }))}
+                                            label="Foto 2"
+                                            placeholder="Clique para adicionar 2ª foto"
+                                            helperText="Opcional."
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ) : (item?.photoMain || item?.photoMain2) ? (
