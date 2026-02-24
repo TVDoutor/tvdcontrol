@@ -3,6 +3,7 @@ import type { UserRole } from '../../types';
 export const DEPARTMENTS: string[] = [
   'Vendas',
   'TI',
+  'Suporte Técnico',
   'Sucesso do Cliente',
   'Marketing',
   'Diretoria',

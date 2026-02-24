@@ -76,7 +76,6 @@ const ItemDetails: React.FC = () => {
     const [returnItemsSelected, setReturnItemsSelected] = useState<string[]>([]);
     const [isReturning, setIsReturning] = useState(false);
     const [selectedAssignUserId, setSelectedAssignUserId] = useState('');
-    const [assignSignature, setAssignSignature] = useState('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [returnSignature, setReturnSignature] = useState('');
     const [dbCategories, setDbCategories] = useState<string[]>([]);
@@ -554,15 +553,6 @@ const ItemDetails: React.FC = () => {
                                     ))}
                                 </div>
                             )}
-                            {selectedAssignUserId && (
-                                <SignaturePad
-                                    value={assignSignature}
-                                    onChange={setAssignSignature}
-                                    label="Assinatura do colaborador"
-                                    placeholder="O colaborador deve assinar no quadro abaixo para receber o equipamento"
-                                    disabled={isAssigning}
-                                />
-                            )}
                         </div>
 
                         <div className="p-4 border-t border-border-light dark:border-border-dark bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
@@ -577,12 +567,11 @@ const ItemDetails: React.FC = () => {
                                 onClick={() => {
                                     if (!selectedAssignUserId) return;
                                     setIsAssigning(true);
-                                    void handleAssignItem(selectedAssignUserId, assignSignature)
+                                    void handleAssignItem(selectedAssignUserId)
                                         .then((result) => {
                                             const docId = result && typeof result === 'object' && result.documentId;
                                             setShowAssignModal(false);
                                             setSelectedAssignUserId('');
-                                            setAssignSignature('');
                                             if (itemId) {
                                                 getDocumentsService().listByItem(itemId).then(setItemDocuments).catch(() => {});
                                             }
