@@ -75,7 +75,6 @@ const AddUser: React.FC = () => {
     if (form.name.trim().length < 3) nextErrors.name = 'Nome deve ter pelo menos 3 caracteres';
     if (!form.email.trim()) nextErrors.email = 'Email é obrigatório';
     if (form.email.trim() && !validateEmail(form.email)) nextErrors.email = 'Email inválido';
-    if (!form.phone.trim()) nextErrors.phone = 'Telefone é obrigatório';
     if (requiresPassword) {
       if (!form.password) nextErrors.password = 'Senha é obrigatória';
       if (form.password.length < 6) nextErrors.password = 'Senha deve ter pelo menos 6 caracteres';
@@ -178,16 +177,13 @@ const AddUser: React.FC = () => {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-text-main-light dark:text-slate-200">Telefone *</span>
+                <span className="text-sm font-medium text-text-main-light dark:text-slate-200">Telefone (opcional)</span>
                 <input
                   value={form.phone}
                   onChange={(e) => setField('phone', e.target.value)}
-                  className={`w-full rounded-lg border px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark ${
-                    errors.phone ? 'border-red-500' : 'border-slate-300 dark:border-slate-700'
-                  }`}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2.5 text-sm bg-background-light dark:bg-background-dark"
                   placeholder="(11) 99999-9999"
                 />
-                {errors.phone && <span className="text-xs text-red-500">{errors.phone}</span>}
               </label>
 
               <label className="flex flex-col gap-2">

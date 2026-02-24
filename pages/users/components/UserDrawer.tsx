@@ -333,7 +333,7 @@ const UserDrawer: React.FC<UserDrawerProps> = ({
                         {errors.email && <span className="text-xs text-red-500">{errors.email}</span>}
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-text-sub-light font-semibold">Telefone</label>
+                        <label className="text-xs text-text-sub-light font-semibold">Telefone (opcional)</label>
                         <input
                           name="phone"
                           value={editFormData.phone || ''}
