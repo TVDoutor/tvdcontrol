@@ -290,12 +290,29 @@ authRouter.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Email ou senha inválidos' });
     }
 
-    const isValid = await verifyPassword(password, user.password_hash);
+    const passwordHash = user.password_hash;
+    if (!passwordHash || typeof passwordHash !== 'string') {
+      console.error('[auth/login] usuário sem password_hash válido:', user.id);
+      return res.status(500).json({
+        error: 'Configuração do usuário inválida. Entre em contato com o administrador para redefinir a senha.',
+      });
+    }
+
+    let isValid: boolean;
+    try {
+      isValid = await verifyPassword(password, passwordHash);
+    } catch (verifyErr: any) {
+      console.error('[auth/login] verifyPassword error:', verifyErr?.message ?? verifyErr);
+      return res.status(500).json({
+        error: 'Erro ao validar senha. O formato do hash no banco pode estar inválido.',
+      });
+    }
     if (!isValid) {
       return res.status(401).json({ error: 'Email ou senha inválidos' });
     }
 
-    if (user.role !== 'Administrador' && user.role !== 'Gerente') {
+    const allowedRoles = ['Administrador', 'Gerente', 'Usuario'];
+    if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({ error: 'Usuário sem acesso ao sistema' });
     }
 
