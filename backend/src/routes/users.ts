@@ -16,14 +16,27 @@ usersRouter.get('/', (req, res, next) => {
     return res.status(403).json({ error: 'Sem permissão para acessar usuários' });
   }
   next();
-}, async (_req, res, next) => {
+}, async (req, res, next) => {
   try {
-    const rows = await query(`
+    const requesterRole = req.user?.role;
+    const isGerente = requesterRole === 'Gerente';
+
+    const rows = await query(
+      isGerente
+        ? `
+      SELECT u.*,
+        (SELECT COUNT(*) FROM inventory_items WHERE assigned_to_user_id = u.id) AS itemsCount
+      FROM users u
+      WHERE u.role = 'Usuario'
+      ORDER BY u.created_at DESC
+    `
+        : `
       SELECT u.*,
         (SELECT COUNT(*) FROM inventory_items WHERE assigned_to_user_id = u.id) AS itemsCount
       FROM users u
       ORDER BY u.created_at DESC
-    `);
+    `
+    );
     const users = rows.map((u: any) => {
       const { password_hash, job_title, ...user } = u;
       return {
@@ -49,8 +62,11 @@ usersRouter.get('/:id/termo-itens', (req, res, next) => {
 }, async (req, res, next) => {
   try {
     const id = String(req.params.id);
-    const user = await queryOne(`SELECT name, department, job_title AS jobTitle, cpf FROM users WHERE id = ?`, [id]);
+    const user = await queryOne(`SELECT name, department, job_title AS jobTitle, cpf, role FROM users WHERE id = ?`, [id]);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (req.user?.role === 'Gerente' && user.role !== 'Usuario') {
+      return res.status(403).json({ error: 'Sem permissão para acessar usuários do tipo Sistema' });
+    }
 
     const company = await queryOne(
       `SELECT name, legal_name AS legalName, address, city, state, zip, cnpj FROM company_settings WHERE id = 'default'`
@@ -120,6 +136,9 @@ usersRouter.get('/:id', (req, res, next) => {
     const user = await queryOne(`SELECT * FROM users WHERE id = ?`, [id]);
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    if (req.user?.role === 'Gerente' && user.role !== 'Usuario') {
+      return res.status(403).json({ error: 'Sem permissão para acessar usuários do tipo Sistema' });
     }
     const itemsCountRow = await queryOne(
       `SELECT COUNT(*) AS count FROM inventory_items WHERE assigned_to_user_id = ?`,

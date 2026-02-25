@@ -36,7 +36,9 @@ export function UsersStoreProvider({ children }: { children: React.ReactNode }) 
       setIsLoading(true);
       setError(null);
       const data = await service.list();
-      setUsers(data);
+      const filtered =
+        user?.role === 'Gerente' ? data.filter((u) => u.role === 'Usuario') : data;
+      setUsers(filtered);
     } catch (e) {
       setError(getFriendlyErrorMessage(e, 'general'));
     } finally {

@@ -531,11 +531,14 @@ itemsRouter.post('/:id/assign', authenticateUser, async (req, res, next) => {
     if (!item) return res.status(404).json({ message: 'Item não encontrado' });
 
     const [userRows] = await pool.query(
-      `SELECT name, department, job_title AS jobTitle, cpf FROM users WHERE id = ?`,
+      `SELECT name, department, job_title AS jobTitle, cpf, role FROM users WHERE id = ?`,
       [userId]
     );
     const user = (userRows as any[])[0];
     if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
+    if (req.user?.role === 'Gerente' && user.role !== 'Usuario') {
+      return res.status(403).json({ message: 'Gerente só pode atribuir itens a usuários Produto/Inventário' });
+    }
 
     const company = await queryOne(
       `SELECT name, legal_name AS legalName, address, city, state, zip, cnpj FROM company_settings WHERE id = 'default'`
