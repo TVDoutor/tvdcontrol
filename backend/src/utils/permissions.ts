@@ -60,6 +60,13 @@ export function canListUsers(role: string | null | undefined): boolean {
   return isSystemUser(role);
 }
 
+// Admin pode excluir qualquer usuário; Gerente só pode excluir role 'Usuario'
+export function canDeleteUser(actorRole: string | null | undefined, targetRole: string | null | undefined): boolean {
+  if (!actorRole || !targetRole) return false;
+  if (actorRole === 'Administrador') return true;
+  return actorRole === 'Gerente' && targetRole === 'Usuario';
+}
+
 // Verifica permissão para gerenciar categorias (usuários de sistema)
 export function canManageCategories(role: string | null | undefined): boolean {
   return isSystemUser(role);

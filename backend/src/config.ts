@@ -107,6 +107,20 @@ if (isProduction && !config.jwt.secret) {
   throw new Error('[tvdcontrol-backend] JWT_SECRET is required in production');
 }
 
+if (isProduction) {
+  const missingDbVars: string[] = [];
+  if (!process.env.DB_HOST) missingDbVars.push('DB_HOST');
+  if (!process.env.DB_USER) missingDbVars.push('DB_USER');
+  if (!process.env.DB_PASSWORD) missingDbVars.push('DB_PASSWORD');
+  if (!process.env.DB_NAME) missingDbVars.push('DB_NAME');
+  if (missingDbVars.length > 0) {
+    throw new Error(
+      `[tvdcontrol-backend] missing required DB env vars in production: ${missingDbVars.join(', ')}. ` +
+      `Check Vercel → Project Settings → Environment Variables and ensure each variable is enabled for the Production environment.`
+    );
+  }
+}
+
 // Log DB config (without password) for debugging
 console.log(
   `[tvdcontrol-backend] db: ${config.db.user}@${config.db.host}:${config.db.port}/${config.db.database} ssl=false`

@@ -3,7 +3,7 @@ import { query, queryOne } from '../db';
 import { hashPassword } from '../utils/password';
 import { generateUUID } from '../utils/uuid';
 import { authenticateUser } from '../utils/auth';
-import { canListUsers, canManageUsers, canCreateProductUser, canEditProductUser } from '../utils/permissions';
+import { canListUsers, canManageUsers, canCreateProductUser, canEditProductUser, canDeleteUser } from '../utils/permissions';
 import { generateTermoItensUsuarioPdf } from '../utils/pdfGenerator';
 
 export const usersRouter = Router();
@@ -409,18 +409,17 @@ usersRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-// DELETE /users/:id - apenas Administrador
-usersRouter.delete('/:id', (req, res, next) => {
-  if (!canManageUsers(req.user?.role)) {
-    return res.status(403).json({ error: 'Sem permissão para gerenciar usuários' });
-  }
-  next();
-}, async (req, res, next) => {
+// DELETE /users/:id - Admin (qualquer) ou Gerente (apenas target role='Usuario')
+usersRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const user = await queryOne(`SELECT id FROM users WHERE id = ?`, [id]);
+    const user = await queryOne(`SELECT id, role FROM users WHERE id = ?`, [id]);
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    if (!canDeleteUser(req.user?.role, user.role)) {
+      return res.status(403).json({ error: 'Sem permissão para excluir este usuário' });
     }
 
     // Verificar se usuário tem itens atribuídos

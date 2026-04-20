@@ -4,7 +4,7 @@ import type { User, UserRole } from '../types';
 import { useUsersStore } from '../store/UsersStore';
 import { useInventoryStore } from '../store/InventoryStore';
 import { useAuthStore } from '../store/AuthStore';
-import { canManageUsers, canEditProductUser } from '../utils/permissions';
+import { canManageUsers, canEditProductUser, canDeleteUser } from '../utils/permissions';
 import { DEPARTMENTS } from './users/constants';
 import { useCargoStore } from '../store/CargoStore';
 import { getFriendlyErrorMessage } from '../services/httpClient';
@@ -289,7 +289,7 @@ const Users: React.FC = () => {
   };
 
   const canUpdateUser = (target: User) => canManageUsers(currentUser) || canEditProductUser(currentUser, target);
-  const allowDelete = canManageUsers(currentUser);
+  const allowDelete = (target: User) => canDeleteUser(currentUser, target);
   const assignedItems = selectedUser
     ? items.filter((i) => i.assignedTo === selectedUser.id)
     : [];
